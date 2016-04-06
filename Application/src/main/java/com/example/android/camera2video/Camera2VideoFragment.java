@@ -26,7 +26,6 @@ import android.app.Fragment;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
-import android.content.res.Configuration;
 import android.graphics.Matrix;
 import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
@@ -40,6 +39,7 @@ import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.CamcorderProfile;
+import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Bundle;
@@ -63,11 +63,11 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import android.support.v13.app.FragmentCompat;
 
 public class Camera2VideoFragment extends Fragment
         implements View.OnClickListener, FragmentCompat.OnRequestPermissionsResultCallback {
@@ -162,6 +162,15 @@ public class Camera2VideoFragment extends Fragment
      */
     private MediaRecorder mMediaRecorder;
 
+    /**
+     * Used to play the two sounds.
+     */
+    private MediaPlayer mBeepPlayer;
+    private MediaPlayer mCanaryPlayer;
+
+    /**
+     * The file that will get written to.
+     */
     private File mOutputFile;
 
     /**
@@ -290,11 +299,14 @@ public class Camera2VideoFragment extends Fragment
         mButtonVideo = (Button) view.findViewById(R.id.video);
         mButtonVideo.setOnClickListener(this);
         view.findViewById(R.id.info).setOnClickListener(this);
+
+        setUpSoundPlayers();
     }
 
     @Override
     public void onResume() {
         super.onResume();
+
         startBackgroundThread();
         if (mTextureView.isAvailable()) {
             openCamera(mTextureView.getWidth(), mTextureView.getHeight());
@@ -307,14 +319,12 @@ public class Camera2VideoFragment extends Fragment
     public void onPause() {
         closeCamera();
         stopBackgroundThread();
-        super.onPause();
-    }
 
-    @Override
-    public void onStop() {
         if (mOutputFile.exists()) {
             mOutputFile.delete();
         }
+
+        super.onPause();
     }
 
     @Override
@@ -322,9 +332,11 @@ public class Camera2VideoFragment extends Fragment
         switch (view.getId()) {
             case R.id.video: {
                 if (mIsRecordingVideo) {
+                    stopSounds();
                     stopRecordingVideo();
                 } else {
                     startRecordingVideo();
+                    playSounds();
                 }
                 break;
             }
@@ -594,6 +606,18 @@ public class Camera2VideoFragment extends Fragment
         mTextureView.setTransform(matrix);
     }
 
+    private void setUpSoundPlayers() {
+        mBeepPlayer = MediaPlayer.create(this.getContext(), R.raw.beep);
+        mCanaryPlayer = MediaPlayer.create(this.getContext(), R.raw.canary);
+
+        mBeepPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                mCanaryPlayer.start();
+            }
+        });
+    }
+
     private void setUpMediaRecorder() throws IOException {
         final Activity activity = getActivity();
         if (null == activity) {
@@ -617,6 +641,24 @@ public class Camera2VideoFragment extends Fragment
         int orientation = ORIENTATIONS.get(rotation);
         mMediaRecorder.setOrientationHint(orientation);
         mMediaRecorder.prepare();
+    }
+
+    private void playSounds() {
+        mBeepPlayer.start();
+
+        // The canary sound will automatically start when the beep sound is finished.
+    }
+
+    private void stopSounds() {
+        if (mBeepPlayer.isPlaying()) {
+            mBeepPlayer.stop();
+            mBeepPlayer.reset();
+        }
+
+        if (mCanaryPlayer.isPlaying()) {
+            mCanaryPlayer.stop();
+            mCanaryPlayer.reset();
+        }
     }
 
     private void startRecordingVideo() {
