@@ -49,6 +49,7 @@ import android.support.annotation.NonNull;
 import android.support.v13.app.FragmentCompat;
 import android.support.v4.app.ActivityCompat;
 import android.util.Log;
+import android.util.Pair;
 import android.util.Range;
 import android.util.Size;
 import android.util.SparseIntArray;
@@ -100,6 +101,11 @@ public class Camera2VideoFragment extends Fragment
      * Button to record video
      */
     private Button mButtonVideo;
+
+    /**
+     * Button to possibly connect to the server or do other things.
+     */
+    private Button mButtonExtra;
 
     /**
      * A refernce to the opened {@link android.hardware.camera2.CameraDevice}.
@@ -300,6 +306,9 @@ public class Camera2VideoFragment extends Fragment
         mButtonVideo.setOnClickListener(this);
         view.findViewById(R.id.info).setOnClickListener(this);
 
+        //mButtonExtra = (Button) view.findViewById(R.id.server_button);
+        //mButtonExtra.setOnClickListener(this);
+
         setUpSoundPlayers();
     }
 
@@ -338,6 +347,11 @@ public class Camera2VideoFragment extends Fragment
                     startRecordingVideo();
                     playSounds();
                 }
+                break;
+            }
+            case R.id.server_button: {
+                //new EndpointsAsyncTask().execute(
+                //        new Pair<Context, String>(this.getContext(), "Daphne"));
                 break;
             }
             case R.id.info: {
