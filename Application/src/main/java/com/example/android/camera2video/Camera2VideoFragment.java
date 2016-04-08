@@ -306,8 +306,8 @@ public class Camera2VideoFragment extends Fragment
         mButtonVideo.setOnClickListener(this);
         view.findViewById(R.id.info).setOnClickListener(this);
 
-        //mButtonExtra = (Button) view.findViewById(R.id.server_button);
-        //mButtonExtra.setOnClickListener(this);
+        mButtonExtra = (Button) view.findViewById(R.id.server_button);
+        mButtonExtra.setOnClickListener(this);
 
         setUpSoundPlayers();
     }
@@ -350,8 +350,8 @@ public class Camera2VideoFragment extends Fragment
                 break;
             }
             case R.id.server_button: {
-                //new EndpointsAsyncTask().execute(
-                //        new Pair<Context, String>(this.getContext(), "Daphne"));
+                new EndpointsAsyncTask().execute(
+                        new Pair<Context, String>(this.getContext(), "Daphne"));
                 break;
             }
             case R.id.info: {
