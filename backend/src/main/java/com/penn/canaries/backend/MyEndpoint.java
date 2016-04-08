@@ -14,7 +14,7 @@ import javax.inject.Named;
 
 /** An endpoint class we are exposing */
 @Api(
-  name = "canaryApi",
+  name = "myApi",
   version = "v1",
   namespace = @ApiNamespace(
     ownerDomain = "backend.canaries.penn.com",
