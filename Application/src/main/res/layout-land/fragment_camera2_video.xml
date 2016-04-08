@@ -43,6 +43,13 @@
             android:layout_gravity="center"
             android:text="@string/record" />
 
+        <Button
+            android:id="@+id/server_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal|top"
+            android:text="Connect to Server" />
+
         <ImageButton
             android:id="@+id/info"
             style="@android:style/Widget.Material.Light.Button.Borderless"
