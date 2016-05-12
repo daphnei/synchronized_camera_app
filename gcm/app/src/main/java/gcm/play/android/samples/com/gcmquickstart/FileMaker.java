@@ -104,7 +104,7 @@ public class FileMaker {
     }
 
     public int getNextId() {
-        return ++id;
+        return id++;
     }
 
 }

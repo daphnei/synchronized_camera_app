@@ -250,6 +250,7 @@ public class MainFragment extends Fragment
         @Override
         public void onOpened(CameraDevice cameraDevice) {
             mCameraDevice = cameraDevice;
+            mOutputFile = fileMaker.getTempFile();
             startPreview();
             mCameraOpenCloseLock.release();
             if (null != mTextureView) {
@@ -389,9 +390,12 @@ public class MainFragment extends Fragment
             @Override
             public void onReceive(Context context, Intent intent) {
                 if (intent.getExtras().get("message").equals(START_RECORDING_MESSAGE)) {
+
                     // First set the output file.
                     mOutputFile = fileMaker.createFile(intent.getExtras().getInt("id"));
-                    mMediaRecorder.setOutputFile(mOutputFile.getAbsolutePath());
+
+                    mMediaRecorder.reset();
+                    startPreview();
 
                     toggleVideoPlayback(true);
                 } else {
@@ -462,6 +466,9 @@ public class MainFragment extends Fragment
     public void onClick(View view) {
         switch (view.getId()) {
             case R.id.video: {
+                // Disable this button so that the user can't spam it.
+                this.mButtonVideo.setEnabled(false);
+
                 //toggleVideoPlayback(!mIsRecordingVideo);
                 String message;
                 if (mIsRecordingVideo) {
@@ -472,9 +479,6 @@ public class MainFragment extends Fragment
 
                 new SendMessageTask(this.getContext()).execute(
                         message, Integer.toString(fileMaker.getNextId()));
-
-                // Disable this button so that the user can't spam it.
-                this.mButtonVideo.setEnabled(false);
 
                 break;
             }
@@ -831,7 +835,6 @@ public class MainFragment extends Fragment
         mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
         //mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
 
-        mOutputFile = fileMaker.getTempFile();
         mMediaRecorder.setOutputFile(mOutputFile.getAbsolutePath());
 
         CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH_SPEED_HIGH);
@@ -896,6 +899,7 @@ public class MainFragment extends Fragment
             //Toast.makeText(activity, "Video saved: " + mOutputFile.getAbsolutePath(),
             //        Toast.LENGTH_LONG).show();
         }
+        mOutputFile = fileMaker.getTempFile();
         startPreview();
     }
 
