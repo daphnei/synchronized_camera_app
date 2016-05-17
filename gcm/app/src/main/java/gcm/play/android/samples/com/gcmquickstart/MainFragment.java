@@ -153,6 +153,7 @@ public class MainFragment extends Fragment
     private BroadcastReceiver mTogglePlaybackReceiver;
     private EditText mIntervalToRecordText;
     private EditText mLengthToRecordText;
+    private EditText mNumberOfRecordingsText;
 
     private boolean isReceiverRegistered;
 
@@ -212,6 +213,7 @@ public class MainFragment extends Fragment
     private MediaPlayer mBeepPlayer;
     private MediaPlayer mCanaryPlayer;
     private Handler mCanaryStopSoundHandler;
+    private Handler mRepeatRecordingHandler;
 
     private final int[] mCanarySoundOffsets = {2547, 20802, 38491, 56604, 114575, 132547, 150660, 208774, 226604, 244717};
 
@@ -226,6 +228,11 @@ public class MainFragment extends Fragment
      * Whether the app is recording video now
      */
     private boolean mIsRecordingVideo;
+
+    /**
+     * Whether or not app is in cycle of recording every so many seconds.
+     */
+    private boolean mInRecordingcycle;
 
     /**
      * An additional thread for running tasks that shouldn't block the UI.
@@ -350,6 +357,8 @@ public class MainFragment extends Fragment
         mTextureView = (TextureView) view.findViewById(R.id.texture);
         mIntervalToRecordText = (EditText) view.findViewById(R.id.intervalToRecord);
         mLengthToRecordText = (EditText) view.findViewById(R.id.secondToRecord);
+        mNumberOfRecordingsText = (EditText) view.findViewById(R.id.numRecordingsToMake);
+
         mButtonVideo = (Button) view.findViewById(R.id.video);
         mButtonAutoVideo = (Button) view.findViewById(R.id.video_repeat);
 
@@ -391,15 +400,17 @@ public class MainFragment extends Fragment
             public void onReceive(Context context, Intent intent) {
                 if (intent.getExtras().get("message").equals(START_RECORDING_MESSAGE)) {
 
-                    // First set the output file.
+                    // Set the output file as specified in the intent.
                     mOutputFile = fileMaker.createFile(intent.getExtras().getInt("id"));
 
+                    // Reset the media recorder so that it uses the new output file.
                     mMediaRecorder.reset();
                     startPreview();
 
-                    toggleVideoPlayback(true);
+                    // Start recording.
+                    toggleVideoRecording(true);
                 } else {
-                    toggleVideoPlayback(false);
+                    toggleVideoRecording(false);
                 }
 
                 // Reenable the button.
@@ -467,9 +478,11 @@ public class MainFragment extends Fragment
         switch (view.getId()) {
             case R.id.video: {
                 // Disable this button so that the user can't spam it.
+                // Also disable the other record button.
                 this.mButtonVideo.setEnabled(false);
+                this.mButtonAutoVideo.setEnabled(false);
 
-                //toggleVideoPlayback(!mIsRecordingVideo);
+                //toggleVideoRecording(!mIsRecordingVideo);
                 String message;
                 if (mIsRecordingVideo) {
                     message = MainFragment.STOP_RECORDING_MESSAGE;
@@ -481,6 +494,37 @@ public class MainFragment extends Fragment
                         message, Integer.toString(fileMaker.getNextId()));
 
                 break;
+            }
+            case R.id.video_repeat: {
+                this.mButtonVideo.setEnabled(false);
+                this.mButtonAutoVideo.setEnabled(false);
+                this.mLengthToRecordText.setEnabled(false);
+                this.mIntervalToRecordText.setEnabled(false);
+                this.mNumberOfRecordingsText.setEnabled(false);
+
+                final int lengthToRecord = Integer.parseInt(mLengthToRecordText.getText().toString());
+                final int intervalToRecord = Integer.parseInt(mIntervalToRecordText.getText().toString());
+                final int numberOfRecordings = Integer.parseInt(mNumberOfRecordingsText.getText().toString());
+
+
+                if (mInRecordingcycle) {
+                    // Cancel the current recording cycle.
+
+                    // Clear all tasks posted to the handlers.
+                    mRepeatRecordingHandler.removeCallbacksAndMessages(null);
+
+                    // If currently recording, then halt it.
+                    if (mIsRecordingVideo) {
+                        new SendMessageTask(MainFragment.this.getContext()).execute(
+                                MainFragment.STOP_RECORDING_MESSAGE, Integer.toString(fileMaker.getNextId()));
+                    }
+
+                    mInRecordingcycle = false;
+                } else {
+                    mInRecordingcycle = true;
+
+                    doRecordLoop(lengthToRecord, intervalToRecord, numberOfRecordings);
+                }
             }
 //            case R.id.info: {
 //                Activity activity = getActivity();
@@ -495,7 +539,38 @@ public class MainFragment extends Fragment
         }
     }
 
-    public void toggleVideoPlayback(boolean toStartRecording) {
+    public void doRecordLoop(
+            final int lengthToRecord, final int intervalToRecord, final int numberOfRecordings) {
+        numberOfRecordings--;
+        if (numberOfRecordings == 0) {
+            mInRecordingcycle = false;
+        }
+
+        // Start the recording.
+        new SendMessageTask(MainFragment.this.getContext()).execute(
+                MainFragment.START_RECORDING_MESSAGE, Integer.toString(fileMaker.getNextId()));
+
+        // Automatically stop recording after the specified amount of time.
+        mRepeatRecordingHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (mInRecordingcycle) {
+                    new SendMessageTask(MainFragment.this.getContext()).execute(
+                            MainFragment.START_RECORDING_MESSAGE, Integer.toString(fileMaker.getNextId()));
+                }
+
+                mRepeatRecordingHandler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (mInRecordingcycle) {
+                            doRecordLoop(lengthToRecord, intervalToRecord, numberOfRecordings);
+                        }
+                    }
+                }, intervalToRecord * 1000);
+            }
+        }, lengthToRecord * 1000);
+    }
+    public void toggleVideoRecording(boolean toStartRecording) {
         if (mIsRecordingVideo) {
             if (!toStartRecording) {
                 stopSounds();

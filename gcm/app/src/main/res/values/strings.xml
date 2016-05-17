@@ -19,7 +19,8 @@
     <string name="stop">Stop</string>
     <string name="record_automated">Record (auto)</string>
     <string name="secondstoRecord">How many seconds should record for?</string>
-    <string name="intervalToRecord">How many minutes should wait between recording?</string>
+    <string name="intervalToRecord">How many minutes should wait between recordings?</string>
+    <string name="numRecordingsToMake">How many times should record?</string>
     <string name="description_info">Info</string>
     <string name="permission_request">This sample needs permission for camera, audio recording, and file writing.</string>
     <string name="camera_error">This device doesn\'t support Camera2 API.</string>
