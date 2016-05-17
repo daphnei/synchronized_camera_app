@@ -31,8 +31,6 @@ import android.support.v4.content.LocalBroadcastManager;
 
 public class MyGcmListenerService extends GcmListenerService {
 
-    private static final String TAG = "MyGcmListenerService";
-
     /**
      * Called when message is received.
      *
@@ -44,10 +42,14 @@ public class MyGcmListenerService extends GcmListenerService {
     @Override
     public void onMessageReceived(String from, Bundle data) {
         String message = data.getString("message");
-        int id = Integer.valueOf(data.getString("id"));
+        String idAsString = data.getString("id");
 
-        Log.d(TAG, "From: " + from);
-        Log.d(TAG, "Message: " + message);
+        Log.d("dei", "Received a message of type: " + message);
+
+        int id = Integer.valueOf(idAsString);
+
+        //Log.d("dei", "From: " + from);
+        //Log.d("dei", "Message: " + message);
 
         if (from.startsWith("/topics/")) {
             // message received from some topic.
@@ -60,10 +62,16 @@ public class MyGcmListenerService extends GcmListenerService {
         // You can also include some extra data.
         intent.putExtra("message", message);
         intent.putExtra("id", id);
+
+        Log.d("dei", "About to broadcast the received message intent.");
+
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
+
+        Log.d("dei", "Finished broadcasting the received message intent.");
 
         // [END_EXCLUDE]
     }
     // [END receive_message]
+
 
 }

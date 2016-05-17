@@ -92,8 +92,9 @@ public class MainFragment extends Fragment
     private static final int REQUEST_VIDEO_PERMISSIONS = 1;
     private static final String FRAGMENT_DIALOG = "dialog";
 
-    private static final int DEFAULT_RECORD_INTERVAL = 5;
-    private static final int DEFAULT_RECORD_LENGTH = 25;
+    private static final double DEFAULT_RECORD_INTERVAL = 4;
+    private static final int DEFAULT_RECORD_LENGTH = 6;
+    private static final int DEFAULT_TIMES_TO_RECORD = 3;
 
 
     private static final String[] VIDEO_PERMISSIONS = {
@@ -215,7 +216,7 @@ public class MainFragment extends Fragment
     private Handler mCanaryStopSoundHandler;
     private Handler mRepeatRecordingHandler;
 
-    private final int[] mCanarySoundOffsets = {2547, 20802, 38491, 56604, 114575, 132547, 150660, 208774, 226604, 244717};
+    private final int[] mCanarySoundOffsets = {2547, 20802, 38491, 56604, 74600, 92600, 110700, 128600, 146500, 165000};
 
     private int mNextCanarySoundIndex = 0;
 
@@ -370,10 +371,13 @@ public class MainFragment extends Fragment
         mButtonAutoVideo.setEnabled(false);
 
         // Set defaults for these.
-        mIntervalToRecordText.setText(Integer.toString(DEFAULT_RECORD_INTERVAL));
-        mLengthToRecordText.setText(Integer.toString(DEFAULT_RECORD_LENGTH));
+        mIntervalToRecordText.setText(Double.toString(DEFAULT_RECORD_INTERVAL));
+        mLengthToRecordText.setText(Double.toString(DEFAULT_RECORD_LENGTH));
+        mNumberOfRecordingsText.setText(Integer.toString(DEFAULT_TIMES_TO_RECORD));
 
         setUpSoundPlayers();
+
+        mRepeatRecordingHandler = new Handler();
 
         //// FOR COMMUNICATION
         // Registering BroadcastReceiver
@@ -390,6 +394,7 @@ public class MainFragment extends Fragment
                 if (sentToken) {
                     mInformationTextView.setText(getString(R.string.gcm_send_message));
                     mButtonVideo.setEnabled(true);
+                    mButtonAutoVideo.setEnabled(true);
                 } else {
                     mInformationTextView.setText(getString(R.string.token_error_message));
                 }
@@ -398,6 +403,8 @@ public class MainFragment extends Fragment
         mTogglePlaybackReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
+                Log.d("dei", "Message received intent HIT");
+
                 if (intent.getExtras().get("message").equals(START_RECORDING_MESSAGE)) {
 
                     // Set the output file as specified in the intent.
@@ -415,6 +422,7 @@ public class MainFragment extends Fragment
 
                 // Reenable the button.
                 MainFragment.this.mButtonVideo.setEnabled(true);
+                MainFragment.this.mButtonAutoVideo.setEnabled(true);
             }
         };
 
@@ -502,10 +510,9 @@ public class MainFragment extends Fragment
                 this.mIntervalToRecordText.setEnabled(false);
                 this.mNumberOfRecordingsText.setEnabled(false);
 
-                final int lengthToRecord = Integer.parseInt(mLengthToRecordText.getText().toString());
-                final int intervalToRecord = Integer.parseInt(mIntervalToRecordText.getText().toString());
+                final double lengthToRecord = Double.parseDouble(mLengthToRecordText.getText().toString());
+                final double intervalToRecord = Double.parseDouble(mIntervalToRecordText.getText().toString());
                 final int numberOfRecordings = Integer.parseInt(mNumberOfRecordingsText.getText().toString());
-
 
                 if (mInRecordingcycle) {
                     // Cancel the current recording cycle.
@@ -519,31 +526,23 @@ public class MainFragment extends Fragment
                                 MainFragment.STOP_RECORDING_MESSAGE, Integer.toString(fileMaker.getNextId()));
                     }
 
-                    mInRecordingcycle = false;
+                    cancelRecordingCycle();
                 } else {
                     mInRecordingcycle = true;
+                    this.mButtonAutoVideo.setText(R.string.stop_automated);
 
                     doRecordLoop(lengthToRecord, intervalToRecord, numberOfRecordings);
                 }
             }
-//            case R.id.info: {
-//                Activity activity = getActivity();
-//                if (null != activity) {
-//                    new AlertDialog.Builder(activity)
-//                            .setMessage(R.string.intro_message)
-//                            .setPositiveButton(android.R.string.ok, null)
-//                            .show();
-//                }
-//                break;
-//            }
         }
     }
 
     public void doRecordLoop(
-            final int lengthToRecord, final int intervalToRecord, final int numberOfRecordings) {
-        numberOfRecordings--;
+            final double lengthToRecord, final double intervalToRecord, final int numberOfRecordings) {
         if (numberOfRecordings == 0) {
-            mInRecordingcycle = false;
+            cancelRecordingCycle();
+
+            return;
         }
 
         // Start the recording.
@@ -554,33 +553,45 @@ public class MainFragment extends Fragment
         mRepeatRecordingHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
+                Log.d("dei", "In callback to stop recording");
                 if (mInRecordingcycle) {
                     new SendMessageTask(MainFragment.this.getContext()).execute(
-                            MainFragment.START_RECORDING_MESSAGE, Integer.toString(fileMaker.getNextId()));
+                            MainFragment.STOP_RECORDING_MESSAGE, Integer.toString(fileMaker.getNextId()));
                 }
 
                 mRepeatRecordingHandler.postDelayed(new Runnable() {
                     @Override
                     public void run() {
                         if (mInRecordingcycle) {
-                            doRecordLoop(lengthToRecord, intervalToRecord, numberOfRecordings);
+                            doRecordLoop(lengthToRecord, intervalToRecord, numberOfRecordings-1);
                         }
                     }
-                }, intervalToRecord * 1000);
+                }, (long) (intervalToRecord * 1000));
             }
-        }, lengthToRecord * 1000);
+        }, (long) (lengthToRecord * 1000));
     }
+
+    public void cancelRecordingCycle() {
+        mInRecordingcycle = false;
+
+        this.mButtonVideo.setEnabled(true);
+        this.mButtonAutoVideo.setText(R.string.record_automated);
+        this.mButtonAutoVideo.setEnabled(true);
+        this.mLengthToRecordText.setEnabled(true);
+        this.mIntervalToRecordText.setEnabled(true);
+        this.mNumberOfRecordingsText.setEnabled(true);
+    }
+
     public void toggleVideoRecording(boolean toStartRecording) {
-        if (mIsRecordingVideo) {
-            if (!toStartRecording) {
-                stopSounds();
-                stopRecordingVideo();
-            }
-        } else {
-            if (toStartRecording) {
-                startRecordingVideo();
-                playSounds();
-            }
+        if (mIsRecordingVideo && !toStartRecording) {
+            Log.d("dei", "Stopping record.");
+            stopSounds();
+            stopRecordingVideo();
+        }
+        if (!mIsRecordingVideo && toStartRecording) {
+            Log.d("dei", "Starting to record.");
+            startRecordingVideo();
+            playSounds();
         }
     }
 
@@ -882,7 +893,9 @@ public class MainFragment extends Fragment
         mBeepPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
             @Override
             public void onCompletion(MediaPlayer mp) {
+                Log.d("dei", "Starting to play at " + mCanarySoundOffsets[mNextCanarySoundIndex]);
                 mCanaryPlayer.seekTo(mCanarySoundOffsets[mNextCanarySoundIndex++]);
+
                 if (mNextCanarySoundIndex == mCanarySoundOffsets.length) {
                     mNextCanarySoundIndex = 0;
                 }
@@ -933,6 +946,8 @@ public class MainFragment extends Fragment
 
     private void stopSounds() {
         try {
+            mCanaryStopSoundHandler.removeCallbacksAndMessages(null);
+
             if (mCanaryPlayer.isPlaying()) {
                 mCanaryPlayer.pause();
                 //mBeepPlayer.stop();
@@ -975,7 +990,7 @@ public class MainFragment extends Fragment
             //        Toast.LENGTH_LONG).show();
         }
         mOutputFile = fileMaker.getTempFile();
-        startPreview();
+        //startPreview();
     }
 
     /**
