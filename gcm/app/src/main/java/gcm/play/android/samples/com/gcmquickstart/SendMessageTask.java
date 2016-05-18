@@ -64,7 +64,7 @@ public class SendMessageTask extends AsyncTask<String, Void, Void> {
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
 
-            Log.d("dei", "About to send a message of type: " + stopOrStart);
+            Log.d("dei", "\nAbout to send a message of type: " + stopOrStart);
 
             // Send GCM message content.
             OutputStream outputStream = conn.getOutputStream();

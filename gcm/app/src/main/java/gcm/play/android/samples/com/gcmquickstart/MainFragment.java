@@ -158,6 +158,8 @@ public class MainFragment extends Fragment
 
     private boolean isReceiverRegistered;
 
+    private Semaphore mRecordingLock;
+
     /**
      * {@link TextureView.SurfaceTextureListener} handles several lifecycle events on a
      * {@link TextureView}.
@@ -179,6 +181,7 @@ public class MainFragment extends Fragment
 
         @Override
         public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+            Log.d("dei", "SURFACE TEXUTRE DESTROYED!");
             return true;
         }
 
@@ -353,6 +356,8 @@ public class MainFragment extends Fragment
 
     @Override
     public void onViewCreated(final View view, Bundle savedInstanceState) {
+        mRecordingLock = new Semaphore(1);
+
         fileMaker = new FileMaker();
 
         mTextureView = (TextureView) view.findViewById(R.id.texture);
@@ -539,12 +544,6 @@ public class MainFragment extends Fragment
 
     public void doRecordLoop(
             final double lengthToRecord, final double intervalToRecord, final int numberOfRecordings) {
-        if (numberOfRecordings == 0) {
-            cancelRecordingCycle();
-
-            return;
-        }
-
         // Start the recording.
         new SendMessageTask(MainFragment.this.getContext()).execute(
                 MainFragment.START_RECORDING_MESSAGE, Integer.toString(fileMaker.getNextId()));
@@ -553,20 +552,28 @@ public class MainFragment extends Fragment
         mRepeatRecordingHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
+                //mRecordingLock.acquireUninterruptibly();
+
                 Log.d("dei", "In callback to stop recording");
-                if (mInRecordingcycle) {
-                    new SendMessageTask(MainFragment.this.getContext()).execute(
-                            MainFragment.STOP_RECORDING_MESSAGE, Integer.toString(fileMaker.getNextId()));
+                new SendMessageTask(MainFragment.this.getContext()).execute(
+                        MainFragment.STOP_RECORDING_MESSAGE, Integer.toString(fileMaker.getNextId()));
+
+                if (numberOfRecordings - 1 > 0) {
+                    mRepeatRecordingHandler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                        mRecordingLock.acquireUninterruptibly();
+                        if (mInRecordingcycle) {
+                            doRecordLoop(lengthToRecord, intervalToRecord, numberOfRecordings - 1);
+                        }
+                        mRecordingLock.release();
+                        }
+                    }, (long) (intervalToRecord * 1000));
+                } else {
+                    cancelRecordingCycle();
                 }
 
-                mRepeatRecordingHandler.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (mInRecordingcycle) {
-                            doRecordLoop(lengthToRecord, intervalToRecord, numberOfRecordings-1);
-                        }
-                    }
-                }, (long) (intervalToRecord * 1000));
+                //mRecordingLock.release();
             }
         }, (long) (lengthToRecord * 1000));
     }
@@ -585,10 +592,10 @@ public class MainFragment extends Fragment
     public void toggleVideoRecording(boolean toStartRecording) {
         if (mIsRecordingVideo && !toStartRecording) {
             Log.d("dei", "Stopping record.");
-            stopSounds();
             stopRecordingVideo();
+            stopSounds();
         }
-        if (!mIsRecordingVideo && toStartRecording) {
+        else if (!mIsRecordingVideo && toStartRecording) {
             Log.d("dei", "Starting to record.");
             startRecordingVideo();
             playSounds();
@@ -878,7 +885,7 @@ public class MainFragment extends Fragment
             matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
             float scale = Math.max(
                     (float) viewHeight / mPreviewSize.getHeight(),
-                    (float) viewWidth / mPreviewSize.getWidth());
+                    (float) viewWidth / mPreviewSize.getWidth()) / 2;
             matrix.postScale(scale, scale, centerX, centerY);
             matrix.postRotate(90 * (rotation - 2), centerX, centerY);
         }
@@ -921,6 +928,7 @@ public class MainFragment extends Fragment
         }
         mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
+        mMediaRecorder.setMaxFileSize(0);
         //mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
 
         mMediaRecorder.setOutputFile(mOutputFile.getAbsolutePath());
@@ -932,7 +940,12 @@ public class MainFragment extends Fragment
         mMediaRecorder.setVideoFrameRate(profile.videoFrameRate);
 
         mMediaRecorder.setVideoSize(mVideoSize.getWidth(), mVideoSize.getHeight());
-
+        mMediaRecorder.setOnErrorListener(new MediaRecorder.OnErrorListener() {
+            @Override
+            public void onError(MediaRecorder mediaRecorder, int i, int i1) {
+                Log.d("dei", "ERROR IN RECORDING");
+            }
+        });
         int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
         int orientation = ORIENTATIONS.get(rotation);
         mMediaRecorder.setOrientationHint(orientation);
@@ -959,29 +972,38 @@ public class MainFragment extends Fragment
         } catch (IOException e) {
             Log.e(e.toString(), "stopSounds");
         }
-
-        Log.d("dei", "Here :)");
     }
 
     private void startRecordingVideo() {
+        //mRecordingLock.acquireUninterruptibly();
+
         try {
             // UI
             mButtonVideo.setText(R.string.stop);
+            mInformationTextView.setText("RECORDING...");
             mIsRecordingVideo = true;
 
             // Start recording
+            Log.d("dei", "About to START mediarecorder recording.");
             mMediaRecorder.start();
         } catch (IllegalStateException e) {
             e.printStackTrace();
         }
+
+        //mRecordingLock.release();
     }
 
     private void stopRecordingVideo() {
+        //mRecordingLock.acquireUninterruptibly();
+
         // UI
         mIsRecordingVideo = false;
         mButtonVideo.setText(R.string.record);
         // Stop recording
+        Log.d("dei", "About to STOP mediarecorder recording.");
         mMediaRecorder.stop();
+        Log.d("dei", "Finish with STOP mediarecorder recording.");
+
         mMediaRecorder.reset();
         Activity activity = getActivity();
         if (null != activity) {
@@ -989,8 +1011,11 @@ public class MainFragment extends Fragment
             //Toast.makeText(activity, "Video saved: " + mOutputFile.getAbsolutePath(),
             //        Toast.LENGTH_LONG).show();
         }
+
         mOutputFile = fileMaker.getTempFile();
-        //startPreview();
+        startPreview();
+
+        //mRecordingLock.release();
     }
 
     /**
