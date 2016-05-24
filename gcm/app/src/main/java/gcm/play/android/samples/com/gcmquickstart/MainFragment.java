@@ -44,6 +44,7 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.CamcorderProfile;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -411,18 +412,10 @@ public class MainFragment extends Fragment
                 Log.d("dei", "Message received intent HIT");
 
                 if (intent.getExtras().get("message").equals(START_RECORDING_MESSAGE)) {
-
-                    // Set the output file as specified in the intent.
-                    mOutputFile = fileMaker.createFile(intent.getExtras().getInt("id"));
-
-                    // Reset the media recorder so that it uses the new output file.
-                    mMediaRecorder.reset();
-                    startPreview();
-
                     // Start recording.
-                    toggleVideoRecording(true);
+                    toggleVideoRecording(true, intent.getExtras().getInt("id"));
                 } else {
-                    toggleVideoRecording(false);
+                    toggleVideoRecording(false, intent.getExtras().getInt("id"));
                 }
 
                 // Reenable the button.
@@ -492,10 +485,10 @@ public class MainFragment extends Fragment
             case R.id.video: {
                 // Disable this button so that the user can't spam it.
                 // Also disable the other record button.
-                this.mButtonVideo.setEnabled(false);
-                this.mButtonAutoVideo.setEnabled(false);
+                //this.mButtonVideo.setEnabled(false);
+                //this.mButtonAutoVideo.setEnabled(false);
 
-                //toggleVideoRecording(!mIsRecordingVideo);
+//                toggleVideoRecording(!mIsRecordingVideo);
                 String message;
                 if (mIsRecordingVideo) {
                     message = MainFragment.STOP_RECORDING_MESSAGE;
@@ -589,16 +582,47 @@ public class MainFragment extends Fragment
         this.mNumberOfRecordingsText.setEnabled(true);
     }
 
-    public void toggleVideoRecording(boolean toStartRecording) {
-        if (mIsRecordingVideo && !toStartRecording) {
-            Log.d("dei", "Stopping record.");
-            stopRecordingVideo();
-            stopSounds();
-        }
-        else if (!mIsRecordingVideo && toStartRecording) {
-            Log.d("dei", "Starting to record.");
-            startRecordingVideo();
-            playSounds();
+    public void toggleVideoRecording(boolean toStartRecording, int id) {
+        if (mIsRecordingVideo) {
+            if (!toStartRecording) {
+                stopSounds();
+                stopRecordingVideo();
+            }
+        } else {
+            if (toStartRecording) {
+                // Set the output file as specified in the intent.
+                mOutputFile = fileMaker.createFile(id);
+
+                // Reset the media recorder so that it uses the new output file.
+                mMediaRecorder.reset();
+
+                this.mButtonVideo.setEnabled(false);
+                this.mButtonAutoVideo.setEnabled(false);
+
+                AsyncTask<Void, Void, Boolean> resetAndStartAsyncTask = new AsyncTask<Void, Void, Boolean>() {
+                    @Override
+                    protected Boolean doInBackground(Void... voids) {
+                        startPreview();
+
+                        startRecordingVideo();
+
+                        return true;
+                    }
+
+                    @Override
+                    protected void onPostExecute(Boolean aBoolean) {
+                        super.onPostExecute(aBoolean);
+
+                        playSounds();
+
+                        mButtonVideo.setText(R.string.stop);
+                        mButtonVideo.setEnabled(true);
+                        mButtonAutoVideo.setEnabled(true);
+                    }
+                };
+
+                resetAndStartAsyncTask.execute();
+            }
         }
     }
 
@@ -792,6 +816,7 @@ public class MainFragment extends Fragment
      * Start the camera preview.
      */
     private void startPreview() {
+
         if (null == mCameraDevice || !mTextureView.isAvailable() || null == mPreviewSize) {
             return;
         }
@@ -800,6 +825,7 @@ public class MainFragment extends Fragment
             SurfaceTexture texture = mTextureView.getSurfaceTexture();
             assert texture != null;
             texture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
+
             mPreviewBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
             List<Surface> surfaces = new ArrayList<Surface>();
 
@@ -931,7 +957,7 @@ public class MainFragment extends Fragment
         mMediaRecorder.setMaxFileSize(0);
         //mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
 
-        mMediaRecorder.setOutputFile(mOutputFile.getAbsolutePath());
+        mMediaRecorder.setOutputFile(mOutputFile == null ? null : mOutputFile.getAbsolutePath());
 
         CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH_SPEED_HIGH);
         mMediaRecorder.setProfile(profile);
@@ -979,8 +1005,6 @@ public class MainFragment extends Fragment
 
         try {
             // UI
-            mButtonVideo.setText(R.string.stop);
-            mInformationTextView.setText("RECORDING...");
             mIsRecordingVideo = true;
 
             // Start recording
@@ -1000,7 +1024,7 @@ public class MainFragment extends Fragment
         mIsRecordingVideo = false;
         mButtonVideo.setText(R.string.record);
         // Stop recording
-        Log.d("dei", "About to STOP mediarecorder recording.");
+
         mMediaRecorder.stop();
         Log.d("dei", "Finish with STOP mediarecorder recording.");
 
@@ -1013,23 +1037,25 @@ public class MainFragment extends Fragment
         }
 
         mOutputFile = fileMaker.getTempFile();
-        startPreview();
 
-        //mRecordingLock.release();
-    }
+        this.mButtonVideo.setEnabled(false);
+        this.mButtonAutoVideo.setEnabled(false);
 
-    /**
-     * Compares two {@code Size}s based on their areas.
-     */
-    static class CompareSizesByArea implements Comparator<Size> {
+        AsyncTask<Void, Void, Boolean> startPreviewAsyncTask = new AsyncTask<Void, Void, Boolean>() {
+            @Override
+            protected Boolean doInBackground(Void... voids) {
+                startPreview();
 
-        @Override
-        public int compare(Size lhs, Size rhs) {
-            // We cast here to ensure the multiplications won't overflow
-            return Long.signum((long) lhs.getWidth() * lhs.getHeight() -
-                    (long) rhs.getWidth() * rhs.getHeight());
-        }
+                return true;
+            };
 
+            protected void onPostExecute() {
+                mButtonVideo.setEnabled(false);
+                mButtonAutoVideo.setEnabled(false);
+            }
+        };
+
+        startPreviewAsyncTask.execute();
     }
 
     public static class ErrorDialog extends DialogFragment {
