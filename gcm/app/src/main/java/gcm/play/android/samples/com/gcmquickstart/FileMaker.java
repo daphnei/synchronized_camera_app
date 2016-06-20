@@ -97,7 +97,7 @@ public class FileMaker {
     }
 
     private String fileNameFromId() {
-        String timeStamp = new SimpleDateFormat("yyyy_MM_dd").format(new Date());
+        String timeStamp = new SimpleDateFormat("MM_dd_kk_mm").format(new Date());
         String paddedID = String.format("%03d", id);
         return getDir().getPath() + File.separator +
                 "VID_" + timeStamp + "_" + paddedID + ".mp4";

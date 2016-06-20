@@ -16,6 +16,9 @@
         Make sure you are connected to the internet, then try restarting the app.</string>
     <string name="record">Record Once</string>
     <string name="stop">Stop</string>
+    <string name="focusSlider">Adjust the focus:</string>
+    <string name="switch_autofocus">Switch to auto focus.</string>
+    <string name="switch_manfocus">Switch to manual focus.</string>
     <string name="record_automated">Record (auto)</string>
     <string name="stop_automated">Stop Record (auto)</string>
     <string name="secondstoRecord">How many seconds should record for?</string>

@@ -40,6 +40,8 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.CaptureResult;
+import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.CamcorderProfile;
 import android.media.MediaPlayer;
@@ -65,6 +67,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.content.SharedPreferences;
@@ -93,9 +96,9 @@ public class MainFragment extends Fragment
     private static final int REQUEST_VIDEO_PERMISSIONS = 1;
     private static final String FRAGMENT_DIALOG = "dialog";
 
-    private static final double DEFAULT_RECORD_INTERVAL = 4;
-    private static final int DEFAULT_RECORD_LENGTH = 6;
-    private static final int DEFAULT_TIMES_TO_RECORD = 3;
+    private static final double DEFAULT_RECORD_INTERVAL = 120;
+    private static final int DEFAULT_RECORD_LENGTH = 20;
+    private static final int DEFAULT_TIMES_TO_RECORD = 10;
 
 
     private static final String[] VIDEO_PERMISSIONS = {
@@ -126,6 +129,16 @@ public class MainFragment extends Fragment
      */
     private Button mButtonAutoVideo;
 
+    /**
+     *  Button that trigger the camera to automatically refocus on the central object.
+     */
+    private Button mButtonRecofus;
+
+    private SeekBar mSeekBar;
+
+    /** Callback for video capture, used to listen for changes in focus state.
+     * */
+    CameraCaptureSession.CaptureCallback mCaptureCallback;
 
     /**
      * A refernce to the opened {@link CameraDevice}.
@@ -255,6 +268,11 @@ public class MainFragment extends Fragment
     private Semaphore mCameraOpenCloseLock = new Semaphore(1);
 
     /**
+     * The characteristics of the camera being used.
+     */
+    private CameraCharacteristics mCharacteristics;
+
+    /**
      * {@link CameraDevice.StateCallback} is called when {@link CameraDevice} changes its status.
      */
     private CameraDevice.StateCallback mStateCallback = new CameraDevice.StateCallback() {
@@ -262,7 +280,6 @@ public class MainFragment extends Fragment
         @Override
         public void onOpened(CameraDevice cameraDevice) {
             mCameraDevice = cameraDevice;
-            mOutputFile = fileMaker.getTempFile();
             startPreview();
             mCameraOpenCloseLock.release();
             if (null != mTextureView) {
@@ -294,59 +311,9 @@ public class MainFragment extends Fragment
         return new MainFragment();
     }
 
-    /**
-     * In this sample, we choose a video size with 3x4 aspect ratio. Also, we don't use sizes
-     * larger than 1080p, since MediaRecorder cannot handle such a high-resolution video.
-     *
-     * @param choices The list of available sizes
-     * @return The video size
-     */
-    private static Size chooseVideoSize(Size[] choices) {
+    private static Size getOptVideoSize() {
         CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH_SPEED_HIGH);
         return new Size(profile.videoFrameWidth, profile.videoFrameHeight);
-
-//        for (Size size : choices) {
-//            if (size.getWidth() == size.getHeight() * 4 / 3 && size.getWidth() <= 1080) {
-//                return size;
-//            }
-//        }
-//        Log.e(TAG, "Couldn't find any suitable video size");
-//        return choices[choices.length - 1];
-    }
-
-    /**
-     * Given {@code choices} of {@code Size}s supported by a camera, chooses the smallest one whose
-     * width and height are at least as large as the respective requested values, and whose aspect
-     * ratio matches with the specified value.
-     *
-     * @param choices     The list of sizes that the camera supports for the intended output class
-     * @param width       The minimum desired width
-     * @param height      The minimum desired height
-     * @param aspectRatio The aspect ratio
-     * @return The optimal {@code Size}, or an arbitrary one if none were big enough
-     */
-    private static Size chooseOptimalSize(Size[] choices, int width, int height, Size aspectRatio) {
-        // Collect the supported resolutions that are at least as big as the preview Surface
-        CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH_SPEED_HIGH);
-        return new Size(profile.videoFrameWidth, profile.videoFrameHeight);
-
-//        List<Size> bigEnough = new ArrayList<Size>();
-//        int w = aspectRatio.getWidth();
-//        int h = aspectRatio.getHeight();
-//        for (Size option : choices) {
-//            if (option.getHeight() == option.getWidth() * h / w &&
-//                    option.getWidth() >= width && option.getHeight() >= height) {
-//                bigEnough.add(option);
-//            }
-//        }
-//
-//        // Pick the smallest of those, assuming we found any
-//        if (bigEnough.size() > 0) {
-//            return Collections.min(bigEnough, new CompareSizesByArea());
-//        } else {
-//            Log.e(TAG, "Couldn't find any suitable preview size");
-//            return choices[0];
-//        }
     }
 
     @Override
@@ -368,9 +335,35 @@ public class MainFragment extends Fragment
 
         mButtonVideo = (Button) view.findViewById(R.id.video);
         mButtonAutoVideo = (Button) view.findViewById(R.id.video_repeat);
+        mButtonRecofus = (Button) view.findViewById(R.id.focus);
+        mSeekBar = (SeekBar) view.findViewById(R.id.seekBar);
 
         mButtonAutoVideo.setOnClickListener(this);
         mButtonVideo.setOnClickListener(this);
+        mButtonRecofus.setOnClickListener(this);
+        mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+                float minimumLens = mCharacteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE);
+                float num = (((float) i) * minimumLens / 100);
+                mPreviewBuilder.set(CaptureRequest.LENS_FOCUS_DISTANCE, num);
+                int showNum = (int) num;
+                Log.d("dei", "focus：" + showNum);
+
+                resetPreviewSession();
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+            }
+        });
+
+        setupCaptureCallback();
 
         // Enable when a connection to the server has been made.
         mButtonVideo.setEnabled(false);
@@ -485,8 +478,8 @@ public class MainFragment extends Fragment
             case R.id.video: {
                 // Disable this button so that the user can't spam it.
                 // Also disable the other record button.
-                //this.mButtonVideo.setEnabled(false);
-                //this.mButtonAutoVideo.setEnabled(false);
+                this.mButtonVideo.setEnabled(false);
+                this.mButtonAutoVideo.setEnabled(false);
 
 //                toggleVideoRecording(!mIsRecordingVideo);
                 String message;
@@ -498,6 +491,8 @@ public class MainFragment extends Fragment
 
                 new SendMessageTask(this.getContext()).execute(
                         message, Integer.toString(fileMaker.getNextId()));
+//                new SendMessageTask(this.getContext()).execute(
+//                        message, Integer.toString(-1));
 
                 break;
             }
@@ -532,7 +527,67 @@ public class MainFragment extends Fragment
                     doRecordLoop(lengthToRecord, intervalToRecord, numberOfRecordings);
                 }
             }
+            case R.id.focus: {
+                //mPreviewBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CaptureRequest.CONTROL_AF_TRIGGER_START);
+
+                if (mPreviewBuilder.get(CaptureRequest.CONTROL_AF_MODE) ==
+                        CameraMetadata.CONTROL_AF_MODE_AUTO) {
+                    this.mSeekBar.setEnabled(true);
+                    this.mButtonRecofus.setText(R.string.switch_autofocus);
+                    mPreviewBuilder.set(CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_OFF);
+                }
+                else if (mPreviewBuilder.get(CaptureRequest.CONTROL_AF_MODE) ==
+                        CameraMetadata.CONTROL_AF_MODE_OFF) {
+                    this.mButtonRecofus.setText(R.string.switch_manfocus);
+                    this.mSeekBar.setEnabled(false);
+                    mPreviewBuilder.set(CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_AUTO);
+                }
+
+                resetPreviewSession();
+            }
         }
+    }
+
+    public void setupCaptureCallback() {
+        mCaptureCallback = null;
+//        mCaptureCallback = new CameraCaptureSession.CaptureCallback() {
+//            boolean justFocused = false;
+//
+//            private void process(CaptureResult result) {
+//                int afState = result.get(CaptureResult.CONTROL_AF_STATE);
+//                if (CaptureResult.CONTROL_AF_TRIGGER_START == afState) {
+////                    if (areWeFocused) {
+//                        //Run specific task here
+////                    }
+//                }
+//                if (CaptureResult.CONTROL_AF_STATE_PASSIVE_FOCUSED == afState) {
+//                    Log.d("dei", "NOW IN FOCUS");
+////                    areWeFocused = true;
+//                } else {
+////                    areWeFocused = false;
+//                }
+//            }
+//
+//            @Override
+//            public void onCaptureProgressed(CameraCaptureSession session, CaptureRequest request,
+//                                            CaptureResult partialResult) {
+//                int afState = partialResult.get(CaptureResult.CONTROL_AF_STATE);
+//                Log.d("dei", "afState = " + afState);
+////                super.onCaptureProgressed(session, request, partialResult);
+//            }
+//
+//            @Override
+//            public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request,
+//                                           TotalCaptureResult result) {
+////                int afState = result.get(CaptureResult.CONTROL_AF_STATE);
+////                Log.d("dei", "afState = " + afState);
+////                if (afState == CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED
+////                        && !justFocused) {
+////                    justFocused = true;
+////                    Log.d("dei", "JUST FOCUSED!");
+////                }
+//            }
+//        };
     }
 
     public void doRecordLoop(
@@ -593,17 +648,12 @@ public class MainFragment extends Fragment
                 // Set the output file as specified in the intent.
                 mOutputFile = fileMaker.createFile(id);
 
-                // Reset the media recorder so that it uses the new output file.
-                mMediaRecorder.reset();
-
                 this.mButtonVideo.setEnabled(false);
                 this.mButtonAutoVideo.setEnabled(false);
 
                 AsyncTask<Void, Void, Boolean> resetAndStartAsyncTask = new AsyncTask<Void, Void, Boolean>() {
                     @Override
                     protected Boolean doInBackground(Void... voids) {
-                        startPreview();
-
                         startRecordingVideo();
 
                         return true;
@@ -615,6 +665,7 @@ public class MainFragment extends Fragment
 
                         playSounds();
 
+                        mInformationTextView.setText("RECORDING...");
                         mButtonVideo.setText(R.string.stop);
                         mButtonVideo.setEnabled(true);
                         mButtonAutoVideo.setEnabled(true);
@@ -758,19 +809,17 @@ public class MainFragment extends Fragment
         }
         CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
         try {
-            Log.d(TAG, "tryAcquire");
             if (!mCameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
                 throw new RuntimeException("Time out waiting to lock camera opening.");
             }
             String cameraId = manager.getCameraIdList()[0];
 
             // Choose the sizes for camera preview and video recording
-            CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
-            StreamConfigurationMap map = characteristics
-                    .get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-            mVideoSize = chooseVideoSize(map.getOutputSizes(MediaRecorder.class));
-            mPreviewSize = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class),
-                    width, height, mVideoSize);
+            mCharacteristics = manager.getCameraCharacteristics(cameraId);
+//            StreamConfigurationMap map = characteristics
+//                    .get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+            mVideoSize = getOptVideoSize();
+            mPreviewSize = getOptVideoSize();
 
 //            int orientation = getResources().getConfiguration().orientation;
 //            if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
@@ -872,19 +921,25 @@ public class MainFragment extends Fragment
         setUpCaptureRequestBuilder(mPreviewBuilder);
         HandlerThread thread = new HandlerThread("CameraPreview");
         thread.start();
+        resetPreviewSession();
+    }
+
+    @TargetApi(Build.VERSION_CODES.M)
+    private void resetPreviewSession() {
         try {
+            mPreviewSession.stopRepeating();
             mPreviewSession.setRepeatingBurst(
                     mPreviewSession.createHighSpeedRequestList(mPreviewBuilder.build()),
-                    null, mBackgroundHandler);
+                    mCaptureCallback, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
     }
 
-
     private void setUpCaptureRequestBuilder(CaptureRequest.Builder builder) {
         builder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
         builder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, new Range<>(240, 240));
+        builder.set(CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_OFF);
     }
 
     /**
@@ -957,6 +1012,8 @@ public class MainFragment extends Fragment
         mMediaRecorder.setMaxFileSize(0);
         //mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
 
+        mOutputFile = fileMaker.createFile(fileMaker.getNextId());
+
         mMediaRecorder.setOutputFile(mOutputFile == null ? null : mOutputFile.getAbsolutePath());
 
         CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH_SPEED_HIGH);
@@ -972,6 +1029,8 @@ public class MainFragment extends Fragment
                 Log.d("dei", "ERROR IN RECORDING");
             }
         });
+
+
         int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
         int orientation = ORIENTATIONS.get(rotation);
         mMediaRecorder.setOrientationHint(orientation);
@@ -1008,8 +1067,12 @@ public class MainFragment extends Fragment
             mIsRecordingVideo = true;
 
             // Start recording
-            Log.d("dei", "About to START mediarecorder recording.");
+            Log.d("dei", "About to START mediarecorder recording");
+            mPreviewBuilder.set(CaptureRequest.CONTROL_AE_LOCK, true);
+            mPreviewBuilder.set(CaptureRequest.CONTROL_AWB_LOCK, true);
+
             mMediaRecorder.start();
+            Log.d("dei", "STARTING mediarecorder recording.");
         } catch (IllegalStateException e) {
             e.printStackTrace();
         }
@@ -1025,37 +1088,36 @@ public class MainFragment extends Fragment
         mButtonVideo.setText(R.string.record);
         // Stop recording
 
+        try {
+            mCameraOpenCloseLock.acquire();
+            mCameraDevice.close();
+        } catch (InterruptedException e) {
+            throw new RuntimeException("Interrupted while trying to lock camera closing.");
+        } finally {
+            mCameraOpenCloseLock.release();
+        }
+
         mMediaRecorder.stop();
+
         Log.d("dei", "Finish with STOP mediarecorder recording.");
 
         mMediaRecorder.reset();
+
+        try {
+            CameraManager manager = (CameraManager) this.getActivity().getSystemService(Context.CAMERA_SERVICE);
+            manager.openCamera(manager.getCameraIdList()[0], mStateCallback, null);
+        } catch (CameraAccessException e){
+            Toast.makeText(this.getActivity(), "Cannot access the camera.", Toast.LENGTH_SHORT).show();
+            this.getActivity().finish();
+        }
+
         Activity activity = getActivity();
         if (null != activity) {
             mInformationTextView.setText("Video saved: " + mOutputFile.getAbsolutePath());
-            //Toast.makeText(activity, "Video saved: " + mOutputFile.getAbsolutePath(),
-            //        Toast.LENGTH_LONG).show();
         }
-
-        mOutputFile = fileMaker.getTempFile();
 
         this.mButtonVideo.setEnabled(false);
         this.mButtonAutoVideo.setEnabled(false);
-
-        AsyncTask<Void, Void, Boolean> startPreviewAsyncTask = new AsyncTask<Void, Void, Boolean>() {
-            @Override
-            protected Boolean doInBackground(Void... voids) {
-                startPreview();
-
-                return true;
-            };
-
-            protected void onPostExecute() {
-                mButtonVideo.setEnabled(false);
-                mButtonAutoVideo.setEnabled(false);
-            }
-        };
-
-        startPreviewAsyncTask.execute();
     }
 
     public static class ErrorDialog extends DialogFragment {
