@@ -40,9 +40,6 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
-import android.hardware.camera2.CaptureResult;
-import android.hardware.camera2.TotalCaptureResult;
-import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.CamcorderProfile;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
@@ -65,6 +62,8 @@ import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
@@ -79,7 +78,6 @@ import com.google.android.gms.common.GoogleApiAvailability;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -97,8 +95,9 @@ public class MainFragment extends Fragment
     private static final String FRAGMENT_DIALOG = "dialog";
 
     private static final double DEFAULT_RECORD_INTERVAL = 120;
-    private static final int DEFAULT_RECORD_LENGTH = 20;
+    private static final double DEFAULT_RECORD_LENGTH = 20;
     private static final int DEFAULT_TIMES_TO_RECORD = 10;
+    private static final double LENGTH_OF_FLASH_SYNC = 0.5;
 
 
     private static final String[] VIDEO_PERMISSIONS = {
@@ -133,6 +132,8 @@ public class MainFragment extends Fragment
      *  Button that trigger the camera to automatically refocus on the central object.
      */
     private Button mButtonRecofus;
+
+    private CheckBox mCheckboxLeader;
 
     private SeekBar mSeekBar;
 
@@ -171,6 +172,9 @@ public class MainFragment extends Fragment
     private EditText mNumberOfRecordingsText;
 
     private boolean isReceiverRegistered;
+
+    private boolean mIsFlashOn;
+    private boolean mIsLeader;
 
     private Semaphore mRecordingLock;
 
@@ -336,11 +340,19 @@ public class MainFragment extends Fragment
         mButtonVideo = (Button) view.findViewById(R.id.video);
         mButtonAutoVideo = (Button) view.findViewById(R.id.video_repeat);
         mButtonRecofus = (Button) view.findViewById(R.id.focus);
+        mCheckboxLeader = (CheckBox) view.findViewById(R.id.checkBoxIsLeader);
         mSeekBar = (SeekBar) view.findViewById(R.id.seekBar);
 
         mButtonAutoVideo.setOnClickListener(this);
         mButtonVideo.setOnClickListener(this);
         mButtonRecofus.setOnClickListener(this);
+        mCheckboxLeader.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+           @Override
+           public void onCheckedChanged(CompoundButton compoundButton, boolean checkBoxSet) {
+               mIsLeader = checkBoxSet;
+           }
+        });
+
         mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
@@ -410,10 +422,6 @@ public class MainFragment extends Fragment
                 } else {
                     toggleVideoRecording(false, intent.getExtras().getInt("id"));
                 }
-
-                // Reenable the button.
-                MainFragment.this.mButtonVideo.setEnabled(true);
-                MainFragment.this.mButtonAutoVideo.setEnabled(true);
             }
         };
 
@@ -432,6 +440,9 @@ public class MainFragment extends Fragment
         };
 
         mInformationTextView = (TextView) view.findViewById(R.id.informationTextView);
+
+        mIsFlashOn = false;
+        mIsLeader = false;
 
         registerReceiver();
 
@@ -550,44 +561,6 @@ public class MainFragment extends Fragment
 
     public void setupCaptureCallback() {
         mCaptureCallback = null;
-//        mCaptureCallback = new CameraCaptureSession.CaptureCallback() {
-//            boolean justFocused = false;
-//
-//            private void process(CaptureResult result) {
-//                int afState = result.get(CaptureResult.CONTROL_AF_STATE);
-//                if (CaptureResult.CONTROL_AF_TRIGGER_START == afState) {
-////                    if (areWeFocused) {
-//                        //Run specific task here
-////                    }
-//                }
-//                if (CaptureResult.CONTROL_AF_STATE_PASSIVE_FOCUSED == afState) {
-//                    Log.d("dei", "NOW IN FOCUS");
-////                    areWeFocused = true;
-//                } else {
-////                    areWeFocused = false;
-//                }
-//            }
-//
-//            @Override
-//            public void onCaptureProgressed(CameraCaptureSession session, CaptureRequest request,
-//                                            CaptureResult partialResult) {
-//                int afState = partialResult.get(CaptureResult.CONTROL_AF_STATE);
-//                Log.d("dei", "afState = " + afState);
-////                super.onCaptureProgressed(session, request, partialResult);
-//            }
-//
-//            @Override
-//            public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request,
-//                                           TotalCaptureResult result) {
-////                int afState = result.get(CaptureResult.CONTROL_AF_STATE);
-////                Log.d("dei", "afState = " + afState);
-////                if (afState == CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED
-////                        && !justFocused) {
-////                    justFocused = true;
-////                    Log.d("dei", "JUST FOCUSED!");
-////                }
-//            }
-//        };
     }
 
     public void doRecordLoop(
@@ -610,13 +583,13 @@ public class MainFragment extends Fragment
                     mRepeatRecordingHandler.postDelayed(new Runnable() {
                         @Override
                         public void run() {
-                        mRecordingLock.acquireUninterruptibly();
-                        if (mInRecordingcycle) {
+                        //mRecordingLock.acquireUninterruptibly();
+                        //if (mInRecordingcycle) {
                             doRecordLoop(lengthToRecord, intervalToRecord, numberOfRecordings - 1);
+                        //}
+                        //mRecordingLock.release();
                         }
-                        mRecordingLock.release();
-                        }
-                    }, (long) (intervalToRecord * 1000));
+                    }, (long) ((intervalToRecord + LENGTH_OF_FLASH_SYNC) * 1000));
                 } else {
                     cancelRecordingCycle();
                 }
@@ -640,13 +613,36 @@ public class MainFragment extends Fragment
     public void toggleVideoRecording(boolean toStartRecording, int id) {
         if (mIsRecordingVideo) {
             if (!toStartRecording) {
-                stopSounds();
-                stopRecordingVideo();
+                // If I am a leader, turn on the flash.
+                // Leader or not, pause for some amount of time before actually stopping recording,
+                // so that the change in flash can be recorded.
+                if (mIsLeader) {
+                    toggleFlash(true);
+                }
+
+                Handler handler = new Handler();
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (mIsLeader) {
+                            stopSounds();
+                            toggleFlash(false);
+                        }
+
+                        stopRecordingVideo();
+
+                        // Allow leader status to be changed again.
+                        mCheckboxLeader.setEnabled(true);
+                    }
+                }, (long) (LENGTH_OF_FLASH_SYNC * 1000));
             }
         } else {
             if (toStartRecording) {
                 // Set the output file as specified in the intent.
                 mOutputFile = fileMaker.createFile(id);
+
+                // Don't allow leader status to be changed while recording.
+                this.mCheckboxLeader.setEnabled(false);
 
                 this.mButtonVideo.setEnabled(false);
                 this.mButtonAutoVideo.setEnabled(false);
@@ -663,7 +659,9 @@ public class MainFragment extends Fragment
                     protected void onPostExecute(Boolean aBoolean) {
                         super.onPostExecute(aBoolean);
 
-                        playSounds();
+                        if (mIsLeader) {
+                            playSounds();
+                         }
 
                         mInformationTextView.setText("RECORDING...");
                         mButtonVideo.setText(R.string.stop);
@@ -674,6 +672,20 @@ public class MainFragment extends Fragment
 
                 resetAndStartAsyncTask.execute();
             }
+        }
+    }
+
+    public void toggleFlash(boolean turnOn) {
+        try {
+            mPreviewBuilder.set(CaptureRequest.FLASH_MODE,
+                    turnOn ? CaptureRequest.FLASH_MODE_TORCH : CaptureRequest.FLASH_MODE_OFF);
+
+            mPreviewSession.setRepeatingBurst(
+                    mPreviewSession.createHighSpeedRequestList(mPreviewBuilder.build()),
+                    mCaptureCallback, mBackgroundHandler);
+
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
         }
     }
 
@@ -974,7 +986,7 @@ public class MainFragment extends Fragment
     }
 
     private void setUpSoundPlayers() {
-        mBeepPlayer = MediaPlayer.create(this.getContext(), R.raw.beep);
+        mBeepPlayer = MediaPlayer.create(this.getContext(), R.raw.beep_silent);
         mCanaryPlayer = MediaPlayer.create(this.getContext(), R.raw.canary);
 
         //mBeepPlayer.setNextMediaPlayer(mCanaryPlayer);
@@ -1116,8 +1128,8 @@ public class MainFragment extends Fragment
             mInformationTextView.setText("Video saved: " + mOutputFile.getAbsolutePath());
         }
 
-        this.mButtonVideo.setEnabled(false);
-        this.mButtonAutoVideo.setEnabled(false);
+        this.mButtonVideo.setEnabled(true);
+        this.mButtonAutoVideo.setEnabled(true);
     }
 
     public static class ErrorDialog extends DialogFragment {

@@ -56,6 +56,13 @@
                 android:textAllCaps="false"
                 android:text="@string/record_automated" />
 
+            <CheckBox
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Leader"
+                android:id="@+id/checkBoxIsLeader"
+                android:enabled="true" />
+
             <ProgressBar
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
