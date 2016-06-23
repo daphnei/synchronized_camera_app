@@ -28,8 +28,6 @@ import java.net.URL;
  * Time: 2:25 PM
  */
 public class SendMessageTask extends AsyncTask<String, Void, Void> {
-
-    private static final String TAG = "SendMessageTask";
     public static final String API_KEY = "AIzaSyAYd5xaRxHrSuWzljlNPjdiIiYoja91vMw";
 
     // Whether or not sending the message was successful.
@@ -44,6 +42,7 @@ public class SendMessageTask extends AsyncTask<String, Void, Void> {
     protected Void doInBackground(String... params) {
         // Whether or not this server message should start recording or stop recording.
         String stopOrStart = params[0];
+        String id = params[1];
 
         try {
             // Prepare JSON containing the GCM message content. What to send and where to send.
@@ -51,7 +50,8 @@ public class SendMessageTask extends AsyncTask<String, Void, Void> {
 
             JSONObject jData = new JSONObject();
             jData.put("message", stopOrStart);
-            jData.put("id", Integer.valueOf(params[1]));
+            Log.d("dei", "Message sent with id: " + id);
+            jData.put("id", id);
 
             jGcmData.put("to", "/topics/global");
             jGcmData.put("data", jData);
@@ -64,6 +64,8 @@ public class SendMessageTask extends AsyncTask<String, Void, Void> {
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
 
+            Log.d("dei", "\nAbout to send a message of type: " + stopOrStart);
+
             // Send GCM message content.
             OutputStream outputStream = conn.getOutputStream();
             outputStream.write(jGcmData.toString().getBytes());
@@ -71,7 +73,7 @@ public class SendMessageTask extends AsyncTask<String, Void, Void> {
             // Need to consume the response, or the message doesn't seem to get sent properly.
             InputStream inputStream = conn.getInputStream();
             String resp = IOUtils.toString(inputStream);
-            Log.d(TAG, "Sent message: " + resp);
+
             mSuccess = true;
         } catch (IOException | JSONException e) {
             // For some reason, the connection to the server is dead. Send out an intent

@@ -12,14 +12,14 @@
 
     <string name="gcm_send_message">Token retrieved and sent to server! You can now record.</string>
     <string name="registering_message">Generating InstanceID token...</string>
-    <string name="token_error_message">An error occurred while either fetching the InstanceID token,
-        sending the fetched token to the server or subscribing to the PubSub topic. Please try
-        running the sample again.</string>
+    <string name="token_error_message">An error occurred while either fetching the InstanceID token.
+        Make sure you are connected to the internet, then try restarting the app.</string>
     <string name="record">Record Once</string>
     <string name="stop">Stop</string>
     <string name="record_automated">Record (auto)</string>
+    <string name="stop_automated">Stop Record (auto)</string>
     <string name="secondstoRecord">How many seconds should record for?</string>
-    <string name="intervalToRecord">How many minutes should wait between recordings?</string>
+    <string name="intervalToRecord">How many seconds should wait between recordings?</string>
     <string name="numRecordingsToMake">How many times should record?</string>
     <string name="description_info">Info</string>
     <string name="permission_request">This sample needs permission for camera, audio recording, and file writing.</string>

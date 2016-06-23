@@ -44,6 +44,7 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.CamcorderProfile;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -92,8 +93,9 @@ public class MainFragment extends Fragment
     private static final int REQUEST_VIDEO_PERMISSIONS = 1;
     private static final String FRAGMENT_DIALOG = "dialog";
 
-    private static final int DEFAULT_RECORD_INTERVAL = 5;
-    private static final int DEFAULT_RECORD_LENGTH = 25;
+    private static final double DEFAULT_RECORD_INTERVAL = 4;
+    private static final int DEFAULT_RECORD_LENGTH = 6;
+    private static final int DEFAULT_TIMES_TO_RECORD = 3;
 
 
     private static final String[] VIDEO_PERMISSIONS = {
@@ -157,6 +159,8 @@ public class MainFragment extends Fragment
 
     private boolean isReceiverRegistered;
 
+    private Semaphore mRecordingLock;
+
     /**
      * {@link TextureView.SurfaceTextureListener} handles several lifecycle events on a
      * {@link TextureView}.
@@ -178,6 +182,7 @@ public class MainFragment extends Fragment
 
         @Override
         public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+            Log.d("dei", "SURFACE TEXUTRE DESTROYED!");
             return true;
         }
 
@@ -215,7 +220,7 @@ public class MainFragment extends Fragment
     private Handler mCanaryStopSoundHandler;
     private Handler mRepeatRecordingHandler;
 
-    private final int[] mCanarySoundOffsets = {2547, 20802, 38491, 56604, 114575, 132547, 150660, 208774, 226604, 244717};
+    private final int[] mCanarySoundOffsets = {2547, 20802, 38491, 56604, 74600, 92600, 110700, 128600, 146500, 165000};
 
     private int mNextCanarySoundIndex = 0;
 
@@ -352,6 +357,8 @@ public class MainFragment extends Fragment
 
     @Override
     public void onViewCreated(final View view, Bundle savedInstanceState) {
+        mRecordingLock = new Semaphore(1);
+
         fileMaker = new FileMaker();
 
         mTextureView = (TextureView) view.findViewById(R.id.texture);
@@ -370,10 +377,13 @@ public class MainFragment extends Fragment
         mButtonAutoVideo.setEnabled(false);
 
         // Set defaults for these.
-        mIntervalToRecordText.setText(Integer.toString(DEFAULT_RECORD_INTERVAL));
-        mLengthToRecordText.setText(Integer.toString(DEFAULT_RECORD_LENGTH));
+        mIntervalToRecordText.setText(Double.toString(DEFAULT_RECORD_INTERVAL));
+        mLengthToRecordText.setText(Double.toString(DEFAULT_RECORD_LENGTH));
+        mNumberOfRecordingsText.setText(Integer.toString(DEFAULT_TIMES_TO_RECORD));
 
         setUpSoundPlayers();
+
+        mRepeatRecordingHandler = new Handler();
 
         //// FOR COMMUNICATION
         // Registering BroadcastReceiver
@@ -390,6 +400,7 @@ public class MainFragment extends Fragment
                 if (sentToken) {
                     mInformationTextView.setText(getString(R.string.gcm_send_message));
                     mButtonVideo.setEnabled(true);
+                    mButtonAutoVideo.setEnabled(true);
                 } else {
                     mInformationTextView.setText(getString(R.string.token_error_message));
                 }
@@ -398,23 +409,18 @@ public class MainFragment extends Fragment
         mTogglePlaybackReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
+                Log.d("dei", "Message received intent HIT");
+
                 if (intent.getExtras().get("message").equals(START_RECORDING_MESSAGE)) {
-
-                    // Set the output file as specified in the intent.
-                    mOutputFile = fileMaker.createFile(intent.getExtras().getInt("id"));
-
-                    // Reset the media recorder so that it uses the new output file.
-                    mMediaRecorder.reset();
-                    startPreview();
-
                     // Start recording.
-                    toggleVideoRecording(true);
+                    toggleVideoRecording(true, intent.getExtras().getInt("id"));
                 } else {
-                    toggleVideoRecording(false);
+                    toggleVideoRecording(false, intent.getExtras().getInt("id"));
                 }
 
                 // Reenable the button.
                 MainFragment.this.mButtonVideo.setEnabled(true);
+                MainFragment.this.mButtonAutoVideo.setEnabled(true);
             }
         };
 
@@ -479,10 +485,10 @@ public class MainFragment extends Fragment
             case R.id.video: {
                 // Disable this button so that the user can't spam it.
                 // Also disable the other record button.
-                this.mButtonVideo.setEnabled(false);
-                this.mButtonAutoVideo.setEnabled(false);
+                //this.mButtonVideo.setEnabled(false);
+                //this.mButtonAutoVideo.setEnabled(false);
 
-                //toggleVideoRecording(!mIsRecordingVideo);
+//                toggleVideoRecording(!mIsRecordingVideo);
                 String message;
                 if (mIsRecordingVideo) {
                     message = MainFragment.STOP_RECORDING_MESSAGE;
@@ -502,10 +508,9 @@ public class MainFragment extends Fragment
                 this.mIntervalToRecordText.setEnabled(false);
                 this.mNumberOfRecordingsText.setEnabled(false);
 
-                final int lengthToRecord = Integer.parseInt(mLengthToRecordText.getText().toString());
-                final int intervalToRecord = Integer.parseInt(mIntervalToRecordText.getText().toString());
+                final double lengthToRecord = Double.parseDouble(mLengthToRecordText.getText().toString());
+                final double intervalToRecord = Double.parseDouble(mIntervalToRecordText.getText().toString());
                 final int numberOfRecordings = Integer.parseInt(mNumberOfRecordingsText.getText().toString());
-
 
                 if (mInRecordingcycle) {
                     // Cancel the current recording cycle.
@@ -519,33 +524,19 @@ public class MainFragment extends Fragment
                                 MainFragment.STOP_RECORDING_MESSAGE, Integer.toString(fileMaker.getNextId()));
                     }
 
-                    mInRecordingcycle = false;
+                    cancelRecordingCycle();
                 } else {
                     mInRecordingcycle = true;
+                    this.mButtonAutoVideo.setText(R.string.stop_automated);
 
                     doRecordLoop(lengthToRecord, intervalToRecord, numberOfRecordings);
                 }
             }
-//            case R.id.info: {
-//                Activity activity = getActivity();
-//                if (null != activity) {
-//                    new AlertDialog.Builder(activity)
-//                            .setMessage(R.string.intro_message)
-//                            .setPositiveButton(android.R.string.ok, null)
-//                            .show();
-//                }
-//                break;
-//            }
         }
     }
 
     public void doRecordLoop(
-            final int lengthToRecord, final int intervalToRecord, final int numberOfRecordings) {
-        numberOfRecordings--;
-        if (numberOfRecordings == 0) {
-            mInRecordingcycle = false;
-        }
-
+            final double lengthToRecord, final double intervalToRecord, final int numberOfRecordings) {
         // Start the recording.
         new SendMessageTask(MainFragment.this.getContext()).execute(
                 MainFragment.START_RECORDING_MESSAGE, Integer.toString(fileMaker.getNextId()));
@@ -554,23 +545,44 @@ public class MainFragment extends Fragment
         mRepeatRecordingHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                if (mInRecordingcycle) {
-                    new SendMessageTask(MainFragment.this.getContext()).execute(
-                            MainFragment.START_RECORDING_MESSAGE, Integer.toString(fileMaker.getNextId()));
+                //mRecordingLock.acquireUninterruptibly();
+
+                Log.d("dei", "In callback to stop recording");
+                new SendMessageTask(MainFragment.this.getContext()).execute(
+                        MainFragment.STOP_RECORDING_MESSAGE, Integer.toString(fileMaker.getNextId()));
+
+                if (numberOfRecordings - 1 > 0) {
+                    mRepeatRecordingHandler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                        mRecordingLock.acquireUninterruptibly();
+                        if (mInRecordingcycle) {
+                            doRecordLoop(lengthToRecord, intervalToRecord, numberOfRecordings - 1);
+                        }
+                        mRecordingLock.release();
+                        }
+                    }, (long) (intervalToRecord * 1000));
+                } else {
+                    cancelRecordingCycle();
                 }
 
-                mRepeatRecordingHandler.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (mInRecordingcycle) {
-                            doRecordLoop(lengthToRecord, intervalToRecord, numberOfRecordings);
-                        }
-                    }
-                }, intervalToRecord * 1000);
+                //mRecordingLock.release();
             }
-        }, lengthToRecord * 1000);
+        }, (long) (lengthToRecord * 1000));
     }
-    public void toggleVideoRecording(boolean toStartRecording) {
+
+    public void cancelRecordingCycle() {
+        mInRecordingcycle = false;
+
+        this.mButtonVideo.setEnabled(true);
+        this.mButtonAutoVideo.setText(R.string.record_automated);
+        this.mButtonAutoVideo.setEnabled(true);
+        this.mLengthToRecordText.setEnabled(true);
+        this.mIntervalToRecordText.setEnabled(true);
+        this.mNumberOfRecordingsText.setEnabled(true);
+    }
+
+    public void toggleVideoRecording(boolean toStartRecording, int id) {
         if (mIsRecordingVideo) {
             if (!toStartRecording) {
                 stopSounds();
@@ -578,8 +590,38 @@ public class MainFragment extends Fragment
             }
         } else {
             if (toStartRecording) {
-                startRecordingVideo();
-                playSounds();
+                // Set the output file as specified in the intent.
+                mOutputFile = fileMaker.createFile(id);
+
+                // Reset the media recorder so that it uses the new output file.
+                mMediaRecorder.reset();
+
+                this.mButtonVideo.setEnabled(false);
+                this.mButtonAutoVideo.setEnabled(false);
+
+                AsyncTask<Void, Void, Boolean> resetAndStartAsyncTask = new AsyncTask<Void, Void, Boolean>() {
+                    @Override
+                    protected Boolean doInBackground(Void... voids) {
+                        startPreview();
+
+                        startRecordingVideo();
+
+                        return true;
+                    }
+
+                    @Override
+                    protected void onPostExecute(Boolean aBoolean) {
+                        super.onPostExecute(aBoolean);
+
+                        playSounds();
+
+                        mButtonVideo.setText(R.string.stop);
+                        mButtonVideo.setEnabled(true);
+                        mButtonAutoVideo.setEnabled(true);
+                    }
+                };
+
+                resetAndStartAsyncTask.execute();
             }
         }
     }
@@ -774,6 +816,7 @@ public class MainFragment extends Fragment
      * Start the camera preview.
      */
     private void startPreview() {
+
         if (null == mCameraDevice || !mTextureView.isAvailable() || null == mPreviewSize) {
             return;
         }
@@ -782,6 +825,7 @@ public class MainFragment extends Fragment
             SurfaceTexture texture = mTextureView.getSurfaceTexture();
             assert texture != null;
             texture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
+
             mPreviewBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
             List<Surface> surfaces = new ArrayList<Surface>();
 
@@ -867,7 +911,7 @@ public class MainFragment extends Fragment
             matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
             float scale = Math.max(
                     (float) viewHeight / mPreviewSize.getHeight(),
-                    (float) viewWidth / mPreviewSize.getWidth());
+                    (float) viewWidth / mPreviewSize.getWidth()) / 2;
             matrix.postScale(scale, scale, centerX, centerY);
             matrix.postRotate(90 * (rotation - 2), centerX, centerY);
         }
@@ -882,7 +926,9 @@ public class MainFragment extends Fragment
         mBeepPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
             @Override
             public void onCompletion(MediaPlayer mp) {
+                Log.d("dei", "Starting to play at " + mCanarySoundOffsets[mNextCanarySoundIndex]);
                 mCanaryPlayer.seekTo(mCanarySoundOffsets[mNextCanarySoundIndex++]);
+
                 if (mNextCanarySoundIndex == mCanarySoundOffsets.length) {
                     mNextCanarySoundIndex = 0;
                 }
@@ -908,9 +954,10 @@ public class MainFragment extends Fragment
         }
         mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
+        mMediaRecorder.setMaxFileSize(0);
         //mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
 
-        mMediaRecorder.setOutputFile(mOutputFile.getAbsolutePath());
+        mMediaRecorder.setOutputFile(mOutputFile == null ? null : mOutputFile.getAbsolutePath());
 
         CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH_SPEED_HIGH);
         mMediaRecorder.setProfile(profile);
@@ -919,7 +966,12 @@ public class MainFragment extends Fragment
         mMediaRecorder.setVideoFrameRate(profile.videoFrameRate);
 
         mMediaRecorder.setVideoSize(mVideoSize.getWidth(), mVideoSize.getHeight());
-
+        mMediaRecorder.setOnErrorListener(new MediaRecorder.OnErrorListener() {
+            @Override
+            public void onError(MediaRecorder mediaRecorder, int i, int i1) {
+                Log.d("dei", "ERROR IN RECORDING");
+            }
+        });
         int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
         int orientation = ORIENTATIONS.get(rotation);
         mMediaRecorder.setOrientationHint(orientation);
@@ -933,6 +985,8 @@ public class MainFragment extends Fragment
 
     private void stopSounds() {
         try {
+            mCanaryStopSoundHandler.removeCallbacksAndMessages(null);
+
             if (mCanaryPlayer.isPlaying()) {
                 mCanaryPlayer.pause();
                 //mBeepPlayer.stop();
@@ -944,29 +998,36 @@ public class MainFragment extends Fragment
         } catch (IOException e) {
             Log.e(e.toString(), "stopSounds");
         }
-
-        Log.d("dei", "Here :)");
     }
 
     private void startRecordingVideo() {
+        //mRecordingLock.acquireUninterruptibly();
+
         try {
             // UI
-            mButtonVideo.setText(R.string.stop);
             mIsRecordingVideo = true;
 
             // Start recording
+            Log.d("dei", "About to START mediarecorder recording.");
             mMediaRecorder.start();
         } catch (IllegalStateException e) {
             e.printStackTrace();
         }
+
+        //mRecordingLock.release();
     }
 
     private void stopRecordingVideo() {
+        //mRecordingLock.acquireUninterruptibly();
+
         // UI
         mIsRecordingVideo = false;
         mButtonVideo.setText(R.string.record);
         // Stop recording
+
         mMediaRecorder.stop();
+        Log.d("dei", "Finish with STOP mediarecorder recording.");
+
         mMediaRecorder.reset();
         Activity activity = getActivity();
         if (null != activity) {
@@ -974,22 +1035,27 @@ public class MainFragment extends Fragment
             //Toast.makeText(activity, "Video saved: " + mOutputFile.getAbsolutePath(),
             //        Toast.LENGTH_LONG).show();
         }
+
         mOutputFile = fileMaker.getTempFile();
-        startPreview();
-    }
 
-    /**
-     * Compares two {@code Size}s based on their areas.
-     */
-    static class CompareSizesByArea implements Comparator<Size> {
+        this.mButtonVideo.setEnabled(false);
+        this.mButtonAutoVideo.setEnabled(false);
 
-        @Override
-        public int compare(Size lhs, Size rhs) {
-            // We cast here to ensure the multiplications won't overflow
-            return Long.signum((long) lhs.getWidth() * lhs.getHeight() -
-                    (long) rhs.getWidth() * rhs.getHeight());
-        }
+        AsyncTask<Void, Void, Boolean> startPreviewAsyncTask = new AsyncTask<Void, Void, Boolean>() {
+            @Override
+            protected Boolean doInBackground(Void... voids) {
+                startPreview();
 
+                return true;
+            };
+
+            protected void onPostExecute() {
+                mButtonVideo.setEnabled(false);
+                mButtonAutoVideo.setEnabled(false);
+            }
+        };
+
+        startPreviewAsyncTask.execute();
     }
 
     public static class ErrorDialog extends DialogFragment {
