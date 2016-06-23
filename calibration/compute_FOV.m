@@ -1,0 +1,1 @@
+2 * atan(4000 / (2 * cameraParams.FocalLength(2))) * 180/pi
