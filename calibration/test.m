@@ -1,24 +1,73 @@
-im_c1 = imread('camera1/02.jpg');
-im_c2 = imread('camera2/02.jpg');
+%%
+v1 = VideoReader('matches_yg/green_01.mp4');
+v2 = VideoReader('matches_yg/yellow_01_flipped.mp4');
 
-figure();
-imshow(im_c1)
-hold on
-plot(imagePoints(:,1,1,1), imagePoints(:,2,1,1), 'ro')
+for i = 1:225
+    readFrame(v2);
+end
 
-x1 = [imagePoints(1,:,1,1) 1]
-X1 = (stereoParams.CameraParameters1.IntrinsicMatrix ^ -1) * x1'
+i = 0;
 
-X2 = stereoParams.RotationOfCamera2  * (X1- stereoParams.TranslationOfCamera2');
+skip = 100;
 
-% AA = x1 * stereoParams.FundamentalMatrix;
-% cvx reset
-% cvx begin
-% variable x2(3)
-% minimize norm(AA * transpose(x2))
-% subject to 
-% 	AA * transpose(x2) == 0
-% 	norm(x2) == 1
-% cvx end
-% 
-% 
+frame1 = readFrame(v1);
+frame2 = readFrame(v2);
+fc1 = 1;
+fc2 = 1;
+while hasFrame(v1) & hasFrame(v2)    
+    subplot(2, 1, 1);
+    imshow(frame1);
+    subplot(2, 1, 2);
+    imshow(frame2);
+    c = input('save? ', 's');
+    if c == 's'
+        i = i+1
+        % Save the frames
+        matches{i}.f1 = frame1;
+        matches{i}.f2 = frame2;
+        matches{i}.fc = fc1;
+        imwrite(frame1, sprintf('matches_yg/g/g_match_%2.2d.jpg',i));
+        imwrite(frame2, sprintf('matches_yg/y/y_match_%2.2d.jpg',i));
+    end
+    frame1 = progress_n(v1, skip);
+    fc1 = fc1 + skip;
+    frame2 = progress_n(v2, skip);
+    fc2 = fc2 + skip;
+
+end
+
+%%
+v1 = VideoReader('matches_yg/green_01.mp4');
+v2 = VideoReader('matches_yg/yellow_01_flipped.mp4');
+skip = 15
+
+frame1 = readFrame(v1);
+frame2 = readFrame(v2);
+fc1 = 1;
+fc2 = 1;
+while hasFrame(v1) & hasFrame(v2)    
+    subplot(2, 1, 1);
+    imshow(frame1);
+    subplot(2, 1, 2);
+    imshow(frame2);
+    c = input('top or bottom?', 's');
+    if c == 't'
+        frame1 = progress_n(v1, skip);
+        fc1 = fc1 + skip;
+    elseif c == 'b'
+        frame2 = progress_n(v2, skip);
+        fc2 = fc2 + skip;
+    end
+    fc1
+    fc2
+end
+
+%%
+% files = dir('matches_rw/r/*.jpg')
+% for img_name = files'
+%     img_path = sprintf('matches_rw/r/%s', img_name.name);
+%     
+%     im = rgb2gray(imread(img_path));
+%     im_adj = imadjust(im, [0 0.1]);
+%     imwrite(im_adj, sprintf('matches_rw/r_adj/%s', img_name.name));
+% end
