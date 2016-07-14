@@ -1,16 +1,7 @@
 <resources>
-    <string name="app_name">Canary Recorder</string>
-    <string name="intro_message">
-        <![CDATA[
+    <string name="app_name">Canary Camera Controller</string>
 
-
-            This sample demonstrates how to record video using Camera2 API.
-
-
-        ]]>
-    </string>
-
-    <string name="gcm_send_message">Token retrieved and sent to server! You can now record.</string>
+  <string name="gcm_send_message">Token retrieved and sent to server! You can now record.</string>
     <string name="registering_message">Generating InstanceID token...</string>
     <string name="token_error_message">An error occurred while either fetching the InstanceID token.
         Make sure you are connected to the internet, then try restarting the app.</string>

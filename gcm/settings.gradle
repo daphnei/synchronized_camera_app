@@ -1,1 +1,1 @@
-include ':app', ':gcmsender', ':backend'
+include ':app', ':gcmsender', ':backend', ':canarycameracontroller'

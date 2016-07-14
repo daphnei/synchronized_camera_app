@@ -48,6 +48,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.support.annotation.IntegerRes;
 import android.support.annotation.NonNull;
 import android.support.v13.app.FragmentCompat;
 import android.support.v4.app.ActivityCompat;
@@ -61,6 +62,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
@@ -136,6 +138,8 @@ public class MainFragment extends Fragment
     private CheckBox mCheckboxLeader;
 
     private SeekBar mSeekBar;
+
+    private TextView focusValueText;
 
     /** Callback for video capture, used to listen for changes in focus state.
      * */
@@ -323,6 +327,9 @@ public class MainFragment extends Fragment
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+        this.getActivity().getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                WindowManager.LayoutParams.FLAG_FULLSCREEN);
+
         return inflater.inflate(R.layout.fragment_camera2_video, container, false);
     }
 
@@ -342,6 +349,7 @@ public class MainFragment extends Fragment
         mButtonRecofus = (Button) view.findViewById(R.id.focus);
         mCheckboxLeader = (CheckBox) view.findViewById(R.id.checkBoxIsLeader);
         mSeekBar = (SeekBar) view.findViewById(R.id.seekBar);
+        focusValueText = (TextView) view.findViewById(R.id.focusValue);
 
         mButtonAutoVideo.setOnClickListener(this);
         mButtonVideo.setOnClickListener(this);
@@ -357,10 +365,12 @@ public class MainFragment extends Fragment
             @Override
             public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
                 float minimumLens = mCharacteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE);
+
                 float num = (((float) i) * minimumLens / 100);
                 mPreviewBuilder.set(CaptureRequest.LENS_FOCUS_DISTANCE, num);
                 int showNum = (int) num;
                 Log.d("dei", "focus：" + showNum);
+                focusValueText.setText(String.format("%.4f", num));
 
                 resetPreviewSession();
             }
@@ -996,7 +1006,7 @@ public class MainFragment extends Fragment
                 Log.d("dei", "Starting to play at " + mCanarySoundOffsets[mNextCanarySoundIndex]);
                 mCanaryPlayer.seekTo(mCanarySoundOffsets[mNextCanarySoundIndex++]);
 
-                if (mNextCanarySoundIndex == mCanarySoundOffsets.length) {
+                if (mNextCanarySoundIndex == mCanarySoundOffsets.length-1) {
                     mNextCanarySoundIndex = 0;
                 }
 
@@ -1005,9 +1015,10 @@ public class MainFragment extends Fragment
                 mCanaryStopSoundHandler.postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        mCanaryPlayer.pause();
+                        if (mCanaryPlayer.isPlaying())
+                            mCanaryPlayer.pause();
                     }
-                }, 10000);
+                }, 35000);
             }
         });
 
