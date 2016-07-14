@@ -1,0 +1,19 @@
+im_c1 = imread('camera1/02.jpg');
+im_c2 = imread('camera2/02.jpg');
+
+figure();
+imshow(im_c1)
+hold on
+plot(imagePoints(:,1,1,1), imagePoints(:,2,1,1), 'ro')
+
+A = x1 * stereoParams.FundamentalMatrix;
+cvx reset
+cvx begin
+variable x2(3)
+minimize norm(A * x2)
+subject to 
+	A * x2 == 0
+	norm(x2) == 1
+cvx end
+
+
