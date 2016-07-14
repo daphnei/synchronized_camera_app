@@ -54,6 +54,8 @@ public class MessagingEndpoint {
         if(message == null || message.trim().length() == 0) {
             log.warning("Not sending message because it is empty");
             return;
+        } else {
+            log.warning("Message: " + message);
         }
         // crop longer messages
         if (message.length() > 1000) {

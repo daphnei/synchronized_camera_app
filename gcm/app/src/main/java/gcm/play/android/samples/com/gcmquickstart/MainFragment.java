@@ -180,8 +180,6 @@ public class MainFragment extends Fragment
     private boolean mIsFlashOn;
     private boolean mIsLeader;
 
-    private Semaphore mRecordingLock;
-
     /**
      * {@link TextureView.SurfaceTextureListener} handles several lifecycle events on a
      * {@link TextureView}.
@@ -424,8 +422,6 @@ public class MainFragment extends Fragment
         mTogglePlaybackReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                Log.d("dei", "Message received intent HIT");
-
                 if (intent.getExtras().get("message").equals(START_RECORDING_MESSAGE)) {
                     // Start recording.
                     toggleVideoRecording(true, intent.getExtras().getInt("id"));
