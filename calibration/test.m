@@ -1,8 +1,13 @@
-%%
-v1 = VideoReader('matches_yg/green_01.mp4');
-v2 = VideoReader('matches_yg/yellow_01_flipped.mp4');
+% %%
+% v1 = VideoReader('red_VID_06_21_15_03_003.mp4');
+% v2 = VideoReader('yellow_VID_06_21_15_03_003.mp4');
+% 
+% %%
+% 
+v1.CurrentTime = 0
+v2.CurrentTime = 0
 
-for i = 1:225
+for i = 1:100 %225
     readFrame(v2);
 end
 
@@ -37,30 +42,38 @@ while hasFrame(v1) & hasFrame(v2)
 end
 
 %%
-v1 = VideoReader('matches_yg/green_01.mp4');
-v2 = VideoReader('matches_yg/yellow_01_flipped.mp4');
-skip = 15
+%% 
 
-frame1 = readFrame(v1);
-frame2 = readFrame(v2);
-fc1 = 1;
-fc2 = 1;
-while hasFrame(v1) & hasFrame(v2)    
-    subplot(2, 1, 1);
-    imshow(frame1);
-    subplot(2, 1, 2);
-    imshow(frame2);
-    c = input('top or bottom?', 's');
-    if c == 't'
-        frame1 = progress_n(v1, skip);
-        fc1 = fc1 + skip;
-    elseif c == 'b'
-        frame2 = progress_n(v2, skip);
-        fc2 = fc2 + skip;
-    end
-    fc1
-    fc2
-end
+% Jump eeach video to close to the end 
+% v1.CurrentTime = v1.Duration - 1;
+% v2.CurrentTime = v2.Duration - 1;
+% v1.CurrentTime = 0;
+% v2.CurrentTime = 0;
+% progress_n(v1, (v1.Duration - 1) * v1.FrameRate);
+% progress_n(v2, (v2.Duration - 1) * v2.FrameRate);
+% 
+% skip = 15;
+% 
+% frame1 = readFrame(v1);
+% frame2 = readFrame(v2);
+% fc1 = 1;
+% fc2 = 1;
+% while hasFrame(v1) & hasFrame(v2)    
+%     subplot(2, 1, 1);
+%     imshow(frame1);
+%     subplot(2, 1, 2);
+%     imshow(frame2);
+%     c = input('top or bottom?', 's');
+%     if c == 't'
+%         frame1 = progress_n(v1, skip);
+%         fc1 = fc1 + skip;
+%     elseif c == 'b'
+%         frame2 = progress_n(v2, skip);
+%         fc2 = fc2 + skip;
+%     end
+%     fc1
+%     fc2
+% end
 
 %%
 % files = dir('matches_rw/r/*.jpg')
