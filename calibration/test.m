@@ -1,14 +1,15 @@
 %%
-v1 = VideoReader('matches_yg/green_01.mp4');
-v2 = VideoReader('matches_yg/yellow_01_flipped.mp4');
+v1 = VideoReader('VID_07_22_16_11_020_yellow.mp4');
+v2 = VideoReader('VID_07_22_16_11_020_white.mp4');
 
-for i = 1:225
-    readFrame(v2);
-end
+%for i = 1:225
+%    readFrame(v2);
+%end
 
+%%
 i = 0;
 
-skip = 100;
+skip = 40;
 
 frame1 = readFrame(v1);
 frame2 = readFrame(v2);
@@ -37,8 +38,7 @@ while hasFrame(v1) & hasFrame(v2)
 end
 
 %%
-v1 = VideoReader('matches_yg/green_01.mp4');
-v2 = VideoReader('matches_yg/yellow_01_flipped.mp4');
+
 skip = 15
 
 frame1 = readFrame(v1);
