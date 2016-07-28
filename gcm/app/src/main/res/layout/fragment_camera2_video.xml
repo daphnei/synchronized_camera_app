@@ -72,26 +72,31 @@
             android:textAllCaps="false"
             android:text="@string/switch_autofocus" />
 
+        <TextView
+            android:layout_width="50dp"
+            android:layout_height="30dp"
+            android:layout_gravity="right|center"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:text="-1"
+            android:id="@+id/focusValue" />
+
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="150dp"
             android:weightSum="1">
 
-
-            <TextView
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:layout_gravity="right|center"
-                android:textAppearance="?android:attr/textAppearanceMedium"
-                android:text="-1"
-                android:id="@+id/focusValue" />
+            <!-- gcm.play.android.samples.com.gcmquickstart.VerticalSeekBar
+                android:id="@+id/seekBar"
+                android:layout_width="wrap_content"
+                android:layout_height="fill_parent"
+                android:layout_gravity="bottom"/ -->
 
             <SeekBar
-                android:layout_width="wrap_content"
-                android:layout_height="150dp"
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
                 android:id="@+id/seekBar"
-                android:layout_weight="1.23" />
+                android:rotation="270" />
 
          </LinearLayout>
     </LinearLayout>

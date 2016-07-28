@@ -344,33 +344,31 @@ public class MainFragment extends Fragment
            }
         });
 
+        mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+                float minimumLens = mCharacteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE);
+                mLastFocusLength = (((float) i) * minimumLens / 100);
 
+                int showNum = (int) mLastFocusLength;
+                Log.d("dei", "focus：" + showNum);
 
-//        mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-//            @Override
-//            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-//                float minimumLens = mCharacteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE);
-//                mLastFocusLength = (((float) i) * minimumLens / 100);
-//
-//                int showNum = (int) mLastFocusLength;
-//                Log.d("dei", "focus：" + showNum);
-//
-//                updateFocus(mLastFocusLength);
-//            }
-//
-//            @Override
-//            public void onStartTrackingTouch(SeekBar seekBar) {
-//
-//            }
-//
-//            @Override
-//            public void onStopTrackingTouch(SeekBar seekBar) {
-//                new SendMessageTask(getContext()).execute(
-//                    MainFragment.UPDATE_FOCUS_MESSAGE,
-//                    "",
-//                    Float.toString(mLastFocusLength));
-//            }
-//        });
+                updateFocus(mLastFocusLength);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                new SendMessageTask(getContext()).execute(
+                    MainFragment.UPDATE_FOCUS_MESSAGE,
+                    "-1",
+                    Float.toString(mLastFocusLength));
+            }
+        });
 
         setupCaptureCallback();
 
@@ -489,6 +487,7 @@ public class MainFragment extends Fragment
                 mPreviewBuilder.set(CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_AUTO);
             }
 
+            //updatePreview();
             resetPreviewSession();
         }
     }
