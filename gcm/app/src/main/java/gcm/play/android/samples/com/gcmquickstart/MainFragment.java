@@ -58,6 +58,7 @@ import android.util.Range;
 import android.util.Size;
 import android.util.SparseIntArray;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
@@ -89,6 +90,7 @@ public class MainFragment extends Fragment
 
     public static final String START_RECORDING_MESSAGE = "start";
     public static final String STOP_RECORDING_MESSAGE = "stop";
+    public static final String UPDATE_FOCUS_MESSAGE = "focus";
 
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
 
@@ -140,6 +142,11 @@ public class MainFragment extends Fragment
     private SeekBar mSeekBar;
 
     private TextView focusValueText;
+
+    /** The last focus length used to set the focus on the camera of this device.
+     *  This is cached so that the info can be shared with other devices.
+     */
+    private float mLastFocusLength;
 
     /** Callback for video capture, used to listen for changes in focus state.
      * */
@@ -333,8 +340,6 @@ public class MainFragment extends Fragment
 
     @Override
     public void onViewCreated(final View view, Bundle savedInstanceState) {
-        mRecordingLock = new Semaphore(1);
-
         fileMaker = new FileMaker();
 
         mTextureView = (TextureView) view.findViewById(R.id.texture);
@@ -363,14 +368,12 @@ public class MainFragment extends Fragment
             @Override
             public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
                 float minimumLens = mCharacteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE);
+                mLastFocusLength = (((float) i) * minimumLens / 100);
 
-                float num = (((float) i) * minimumLens / 100);
-                mPreviewBuilder.set(CaptureRequest.LENS_FOCUS_DISTANCE, num);
-                int showNum = (int) num;
+                int showNum = (int) mLastFocusLength;
                 Log.d("dei", "focus：" + showNum);
-                focusValueText.setText(String.format("%.4f", num));
 
-                resetPreviewSession();
+                updateFocus(mLastFocusLength);
             }
 
             @Override
@@ -380,6 +383,10 @@ public class MainFragment extends Fragment
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
+                new SendMessageTask(getContext()).execute(
+                    MainFragment.UPDATE_FOCUS_MESSAGE,
+                    "",
+                    Float.toString(mLastFocusLength));
             }
         });
 
@@ -425,8 +432,11 @@ public class MainFragment extends Fragment
                 if (intent.getExtras().get("message").equals(START_RECORDING_MESSAGE)) {
                     // Start recording.
                     toggleVideoRecording(true, intent.getExtras().getInt("id"));
-                } else {
+                }
+                else if (intent.getExtras().get("message").equals(STOP_RECORDING_MESSAGE)){
                     toggleVideoRecording(false, intent.getExtras().getInt("id"));
+                } else {
+                    updateFocus(intent.getExtras().getFloat("focus"));
                 }
             }
         };
@@ -507,7 +517,9 @@ public class MainFragment extends Fragment
                 }
 
                 new SendMessageTask(this.getContext()).execute(
-                        message, Integer.toString(fileMaker.getNextId()));
+                        message,
+                        Integer.toString(fileMaker.getNextId()),
+                        Float.toString(mLastFocusLength));
 //                new SendMessageTask(this.getContext()).execute(
 //                        message, Integer.toString(-1));
 
@@ -557,6 +569,7 @@ public class MainFragment extends Fragment
                         CameraMetadata.CONTROL_AF_MODE_OFF) {
                     this.mButtonRecofus.setText(R.string.switch_manfocus);
                     this.mSeekBar.setEnabled(false);
+                    this.mLastFocusLength = -1;
                     mPreviewBuilder.set(CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_AUTO);
                 }
 
@@ -616,6 +629,15 @@ public class MainFragment extends Fragment
         this.mNumberOfRecordingsText.setEnabled(true);
     }
 
+    public void updateFocus(float focus) {
+        if (focus >= 0) {
+            mLastFocusLength = focus;
+
+            mPreviewBuilder.set(CaptureRequest.LENS_FOCUS_DISTANCE, mLastFocusLength);
+            focusValueText.setText(String.format("%.4f", mLastFocusLength));
+            resetPreviewSession();
+        }
+    }
     public void toggleVideoRecording(boolean toStartRecording, int id) {
         if (mIsRecordingVideo) {
             if (!toStartRecording) {

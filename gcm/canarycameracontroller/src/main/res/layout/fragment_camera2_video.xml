@@ -17,93 +17,108 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:background="#4285f4"
         android:layout_alignParentTop="true"
-        android:layout_toEndOf="@+id/texture"
-        android:orientation="vertical"
+        android:orientation="horizontal"
         android:weightSum="1">
-
         <LinearLayout
-            android:orientation="horizontal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_width="464dp"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:background="#4285f4"
+            android:layout_alignParentTop="true"
+            android:layout_toEndOf="@+id/texture"
+            android:orientation="vertical"
+            android:weightSum="1">
 
-            <Button
-                android:id="@+id/video"
+            <LinearLayout
+                android:orientation="horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <Button
+                    android:id="@+id/video"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="left|top"
+                    android:textAllCaps="false"
+                    android:text="@string/record" />
+
+                <Button
+                    android:id="@+id/video_repeat"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="left|top"
+                    android:textAllCaps="false"
+                    android:text="@string/record_automated" />
+
+                <ProgressBar
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="right|center"
+                    android:id="@+id/registrationProgressBar" />
+            </LinearLayout>
+
+            <TextView android:text="@string/registering_message" android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/informationTextView"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:layout_weight="0.18" />
+
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="left|top"
-                android:textAllCaps="false"
-                android:text="@string/record" />
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:text="@string/secondstoRecord"
+                android:id="@+id/secondsToRecordText" />
 
-            <Button
-                android:id="@+id/video_repeat"
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="numberDecimal"
+                android:ems="10"
+                android:id="@+id/secondToRecord" />
+
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="left|top"
-                android:textAllCaps="false"
-                android:text="@string/record_automated" />
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:text="@string/intervalToRecord"
+                android:id="@+id/IntervalToRecordText" />
 
-            <ProgressBar
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="numberDecimal"
+                android:ems="10"
+                android:id="@+id/intervalToRecord" />
+
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="right|center"
-                android:id="@+id/registrationProgressBar" />
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:text="@string/numRecordingsToMake"
+                android:id="@+id/numRecordingsToMakeText" />
+
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:ems="10"
+                android:id="@+id/numRecordingsToMake" />
+
         </LinearLayout>
-
-        <TextView android:text="@string/registering_message" android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:id="@+id/informationTextView"
-            android:textAppearance="?android:attr/textAppearanceMedium"
-            android:layout_weight="0.18" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textAppearance="?android:attr/textAppearanceMedium"
-            android:text="@string/secondstoRecord"
-            android:id="@+id/secondsToRecordText" />
-
-        <EditText
+        <SeekBar
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="numberDecimal"
-            android:ems="10"
-            android:id="@+id/secondToRecord" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textAppearance="?android:attr/textAppearanceMedium"
-            android:text="@string/intervalToRecord"
-            android:id="@+id/IntervalToRecordText" />
-
-        <EditText
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="numberDecimal"
-            android:ems="10"
-            android:id="@+id/intervalToRecord" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textAppearance="?android:attr/textAppearanceMedium"
-            android:text="@string/numRecordingsToMake"
-            android:id="@+id/numRecordingsToMakeText" />
-
-        <EditText
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="number"
-            android:ems="10"
-            android:id="@+id/numRecordingsToMake" />
-
+            android:layout_height="match_parent"
+            android:id="@+id/seekBar"
+            android:rotation="270"
+            />
     </LinearLayout>
+
 
 </RelativeLayout>

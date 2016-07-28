@@ -45,12 +45,15 @@ public class MessagingEndpoint {
     /** Api Keys can be obtained from the google cloud console */
     private static final String API_KEY = System.getProperty("gcm.api.key");
 
+    private static int counter = 0;
     /**
      * Send to the first 10 devices (You can modify this to send to any number of devices or a specific device)
      *
      * @param message The message to send
      */
     public void sendMessage(@Named("message") String message) throws IOException {
+        log.warning("HEEERE");
+
         if(message == null || message.trim().length() == 0) {
             log.warning("Not sending message because it is empty");
             return;
@@ -61,17 +64,24 @@ public class MessagingEndpoint {
         if (message.length() > 1000) {
             message = message.substring(0, 1000) + "[...]";
         }
+        //message = "foobar";
+        //log.warning("Message is now:" + message);
+
         Sender sender = new Sender(API_KEY);
-        Message msg = new Message.Builder().addData("message", message).build();
+        Message msg = new Message.Builder()
+                .addData("message", message)
+                .addData("index", String.format("%03d", counter++))
+                .build();
+
         List<RegistrationRecord> records = ofy().load().type(RegistrationRecord.class).limit(10).list();
         for(RegistrationRecord record : records) {
             Result result = sender.send(msg, record.getRegId(), 5);
             if (result.getMessageId() != null) {
-                log.info("Message sent to " + record.getRegId());
+                log.warning("Message sent to " + record.getRegId());
                 String canonicalRegId = result.getCanonicalRegistrationId();
                 if (canonicalRegId != null) {
                     // if the regId changed, we have to update the datastore
-                    log.info("Registration Id changed for " + record.getRegId() + " updating to " + canonicalRegId);
+                    log.warning("Registration Id changed for " + record.getRegId() + " updating to " + canonicalRegId);
                     record.setRegId(canonicalRegId);
                     ofy().save().entity(record).now();
                 }

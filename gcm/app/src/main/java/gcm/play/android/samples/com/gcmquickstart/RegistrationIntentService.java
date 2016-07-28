@@ -107,7 +107,7 @@ public class RegistrationIntentService extends IntentService {
         // TO REGISTER ON REMOTE SERVER
         Registration.Builder builder = new Registration.Builder(AndroidHttp.newCompatibleTransport(),
                 new AndroidJsonFactory(), null)
-                .setRootUrl("https://canaryproject-1275.appspot.com/_ah/api/");
+                .setRootUrl("https://canaryproject2.appspot.com/_ah/api/");
         Registration regService = builder.build();
         regService.register(token).execute();
     }

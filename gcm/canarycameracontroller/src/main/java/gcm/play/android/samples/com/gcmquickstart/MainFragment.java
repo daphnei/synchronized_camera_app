@@ -88,6 +88,7 @@ public class MainFragment extends Fragment
 
     public static final String START_RECORDING_MESSAGE = "start";
     public static final String STOP_RECORDING_MESSAGE = "stop";
+    public static final String UPDATE_FOCUS_MESSAGE = "focus";
 
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
 
@@ -157,6 +158,9 @@ public class MainFragment extends Fragment
 
     private Handler mRepeatRecordingHandler;
 
+    private float mLastFocusValue;
+
+
     /**
      * A reference to the current {@link CameraCaptureSession} for
      * preview.
@@ -209,6 +213,27 @@ public class MainFragment extends Fragment
 
         mButtonAutoVideo.setOnClickListener(this);
         mButtonVideo.setOnClickListener(this);
+
+        mSeekBar = (SeekBar) view.findViewById(R.id.seekBar);
+        mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+                mLastFocusValue = new Float(i);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                new SendMessageTask(getContext()).execute(
+                        MainFragment.UPDATE_FOCUS_MESSAGE,
+                        "",
+                        Float.toString(mLastFocusValue));
+            }
+        });
 
         mRepeatRecordingHandler = new Handler();
 
@@ -318,7 +343,7 @@ public class MainFragment extends Fragment
                 }
 
                 new SendMessageTask(this.getContext()).execute(
-                        message, Integer.toString(fileMaker.getNextId()));
+                        message, Integer.toString(fileMaker.getNextId()), "-1");
 
                 break;
             }
@@ -342,7 +367,9 @@ public class MainFragment extends Fragment
                     // If currently recording, then halt it.
                     if (mIsRecordingVideo) {
                         new SendMessageTask(MainFragment.this.getContext()).execute(
-                                MainFragment.STOP_RECORDING_MESSAGE, Integer.toString(fileMaker.getNextId()));
+                                MainFragment.STOP_RECORDING_MESSAGE,
+                                Integer.toString(fileMaker.getNextId()),
+                                "-1");
                     }
 
                     cancelRecordingCycle();
@@ -360,7 +387,9 @@ public class MainFragment extends Fragment
             final double lengthToRecord, final double intervalToRecord, final int numberOfRecordings) {
         // Start the recording.
         new SendMessageTask(MainFragment.this.getContext()).execute(
-                MainFragment.START_RECORDING_MESSAGE, Integer.toString(fileMaker.getNextId()));
+                MainFragment.START_RECORDING_MESSAGE,
+                Integer.toString(fileMaker.getNextId()),
+                "-1");
 
         // Automatically stop recording after the specified amount of time.
         mRepeatRecordingHandler.postDelayed(new Runnable() {
@@ -370,7 +399,9 @@ public class MainFragment extends Fragment
 
                 Log.d("dei", "In callback to stop recording");
                 new SendMessageTask(MainFragment.this.getContext()).execute(
-                        MainFragment.STOP_RECORDING_MESSAGE, Integer.toString(fileMaker.getNextId()));
+                        MainFragment.STOP_RECORDING_MESSAGE,
+                        Integer.toString(fileMaker.getNextId()),
+                        "-1");
 
                 if (numberOfRecordings - 1 > 0) {
                     mRepeatRecordingHandler.postDelayed(new Runnable() {

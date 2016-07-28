@@ -28,7 +28,8 @@ import java.net.URL;
  * Time: 2:25 PM
  */
 public class SendMessageTask extends AsyncTask<String, Void, Void> {
-    public static final String API_KEY = "AIzaSyAYd5xaRxHrSuWzljlNPjdiIiYoja91vMw";
+    //public static final String API_KEY = "AIzaSyAYd5xaRxHrSuWzljlNPjdiIiYoja91vMw";
+    public static final String API_KEY = "AIzaSyALx6duERuCwBuoRK4I9lpaOvRwXMJdpEY";
 
     // Whether or not sending the message was successful.
     private boolean mSuccess;
@@ -43,6 +44,7 @@ public class SendMessageTask extends AsyncTask<String, Void, Void> {
         // Whether or not this server message should start recording or stop recording.
         String stopOrStart = params[0];
         String id = params[1];
+        String focus = params[2];
 
         try {
             // Prepare JSON containing the GCM message content. What to send and where to send.
@@ -52,9 +54,11 @@ public class SendMessageTask extends AsyncTask<String, Void, Void> {
             jData.put("message", stopOrStart);
             Log.d("dei", "Message sent with id: " + id);
             jData.put("id", id);
+            jData.put("focus", focus);
 
             jGcmData.put("to", "/topics/global");
             jGcmData.put("data", jData);
+
 
             // Create connection to send GCM Message request.
             URL url = new URL("https://android.googleapis.com/gcm/send");

@@ -43,10 +43,12 @@ public class MyGcmListenerService extends GcmListenerService {
     public void onMessageReceived(String from, Bundle data) {
         String message = data.getString("message");
         String idAsString = data.getString("id");
+        String focusAsString = data.getString("focus");
 
         Log.d("dei", "Received a message of type: " + message);
 
         int id = Integer.valueOf(idAsString);
+        float focus = Float.valueOf(focusAsString);
 
         //Log.d("dei", "From: " + from);
         //Log.d("dei", "Message: " + message);
@@ -62,6 +64,7 @@ public class MyGcmListenerService extends GcmListenerService {
         // You can also include some extra data.
         intent.putExtra("message", message);
         intent.putExtra("id", id);
+        intent.putExtra("focus", focus);
 
         Log.d("dei", "About to broadcast the received message intent.");
 
