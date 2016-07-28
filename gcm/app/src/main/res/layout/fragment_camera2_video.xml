@@ -23,38 +23,24 @@
         android:layout_height="768px"
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"
-        android:layout_alignParentBottom="true" />
+        android:layout_alignParentBottom="true"
+        android:layout_toStartOf="@+id/linearLayout" />
 
     <LinearLayout
-        android:layout_width="match_parent"
+        android:layout_width="100dp"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
         android:background="@color/yellow"
-        android:layout_alignParentTop="true"
-        android:layout_toEndOf="@+id/texture"
         android:orientation="vertical"
-        android:weightSum="1">
+        android:weightSum="1"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true"
+        android:id="@+id/linearLayout">
 
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <Button
-                android:id="@+id/video"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="left|top"
-                android:textAllCaps="false"
-                android:text="@string/record" />
-
-            <Button
-                android:id="@+id/video_repeat"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="left|top"
-                android:textAllCaps="false"
-                android:text="@string/record_automated" />
+            android:layout_height="37dp">
 
             <CheckBox
                 android:layout_width="wrap_content"
@@ -76,85 +62,38 @@
             android:textAppearance="?android:attr/textAppearanceMedium"
             android:layout_weight="0.18" />
 
-        <TextView
+        <Button
+            android:id="@+id/focus"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textAppearance="?android:attr/textAppearanceMedium"
-            android:text="@string/secondstoRecord"
-            android:id="@+id/secondsToRecordText" />
-
-        <EditText
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="numberDecimal"
-            android:ems="10"
-            android:id="@+id/secondToRecord" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textAppearance="?android:attr/textAppearanceMedium"
-            android:text="@string/intervalToRecord"
-            android:id="@+id/IntervalToRecordText" />
-
-        <EditText
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="numberDecimal"
-            android:ems="10"
-            android:id="@+id/intervalToRecord" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textAppearance="?android:attr/textAppearanceMedium"
-            android:text="@string/numRecordingsToMake"
-            android:id="@+id/numRecordingsToMakeText" />
-
-        <EditText
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="number"
-            android:ems="10"
-            android:id="@+id/numRecordingsToMake" />
+            android:layout_gravity="left|top"
+            android:minHeight="0dp"
+            android:minWidth="0dp"
+            android:textAllCaps="false"
+            android:text="@string/switch_autofocus" />
 
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:weightSum="1">
+
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_gravity="right|center"
                 android:textAppearance="?android:attr/textAppearanceMedium"
-                android:text="@string/focusSlider"
-                android:id="@+id/focusSliderText" />
+                android:text="-1"
+                android:id="@+id/focusValue" />
 
-            <Button
-                android:id="@+id/focus"
+            <SeekBar
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="left|top"
-                android:minHeight="0dp"
-                android:minWidth="0dp"
-                android:textAllCaps="false"
-                android:text="@string/switch_autofocus" />
+                android:layout_height="150dp"
+                android:id="@+id/seekBar"
+                android:layout_weight="1.23" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="right|center"
-                    android:textAppearance="?android:attr/textAppearanceMedium"
-                    android:text="-1"
-                    android:id="@+id/focusValue" />
-        </LinearLayout>
-
-        <SeekBar
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:id="@+id/seekBar"
-             />
-
+         </LinearLayout>
     </LinearLayout>
 
 </RelativeLayout>

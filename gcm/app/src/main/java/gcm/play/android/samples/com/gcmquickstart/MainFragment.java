@@ -123,16 +123,6 @@ public class MainFragment extends Fragment
     private TextureView mTextureView;
 
     /**
-     * Button to record video
-     */
-    private Button mButtonVideo;
-
-    /**
-     * Button to keep recording video every time_interval.
-     */
-    private Button mButtonAutoVideo;
-
-    /**
      *  Button that trigger the camera to automatically refocus on the central object.
      */
     private Button mButtonRecofus;
@@ -178,9 +168,6 @@ public class MainFragment extends Fragment
     private BroadcastReceiver mRegistrationBroadcastReceiver;
     private BroadcastReceiver mReconnectBroadcastReceiver;
     private BroadcastReceiver mTogglePlaybackReceiver;
-    private EditText mIntervalToRecordText;
-    private EditText mLengthToRecordText;
-    private EditText mNumberOfRecordingsText;
 
     private boolean isReceiverRegistered;
 
@@ -343,19 +330,12 @@ public class MainFragment extends Fragment
         fileMaker = new FileMaker();
 
         mTextureView = (TextureView) view.findViewById(R.id.texture);
-        mIntervalToRecordText = (EditText) view.findViewById(R.id.intervalToRecord);
-        mLengthToRecordText = (EditText) view.findViewById(R.id.secondToRecord);
-        mNumberOfRecordingsText = (EditText) view.findViewById(R.id.numRecordingsToMake);
 
-        mButtonVideo = (Button) view.findViewById(R.id.video);
-        mButtonAutoVideo = (Button) view.findViewById(R.id.video_repeat);
         mButtonRecofus = (Button) view.findViewById(R.id.focus);
         mCheckboxLeader = (CheckBox) view.findViewById(R.id.checkBoxIsLeader);
         mSeekBar = (SeekBar) view.findViewById(R.id.seekBar);
         focusValueText = (TextView) view.findViewById(R.id.focusValue);
 
-        mButtonAutoVideo.setOnClickListener(this);
-        mButtonVideo.setOnClickListener(this);
         mButtonRecofus.setOnClickListener(this);
         mCheckboxLeader.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
            @Override
@@ -364,42 +344,35 @@ public class MainFragment extends Fragment
            }
         });
 
-        mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-                float minimumLens = mCharacteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE);
-                mLastFocusLength = (((float) i) * minimumLens / 100);
 
-                int showNum = (int) mLastFocusLength;
-                Log.d("dei", "focus：" + showNum);
 
-                updateFocus(mLastFocusLength);
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-                new SendMessageTask(getContext()).execute(
-                    MainFragment.UPDATE_FOCUS_MESSAGE,
-                    "",
-                    Float.toString(mLastFocusLength));
-            }
-        });
+//        mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+//            @Override
+//            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+//                float minimumLens = mCharacteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE);
+//                mLastFocusLength = (((float) i) * minimumLens / 100);
+//
+//                int showNum = (int) mLastFocusLength;
+//                Log.d("dei", "focus：" + showNum);
+//
+//                updateFocus(mLastFocusLength);
+//            }
+//
+//            @Override
+//            public void onStartTrackingTouch(SeekBar seekBar) {
+//
+//            }
+//
+//            @Override
+//            public void onStopTrackingTouch(SeekBar seekBar) {
+//                new SendMessageTask(getContext()).execute(
+//                    MainFragment.UPDATE_FOCUS_MESSAGE,
+//                    "",
+//                    Float.toString(mLastFocusLength));
+//            }
+//        });
 
         setupCaptureCallback();
-
-        // Enable when a connection to the server has been made.
-        mButtonVideo.setEnabled(false);
-        mButtonAutoVideo.setEnabled(false);
-
-        // Set defaults for these.
-        mIntervalToRecordText.setText(Double.toString(DEFAULT_RECORD_INTERVAL));
-        mLengthToRecordText.setText(Double.toString(DEFAULT_RECORD_LENGTH));
-        mNumberOfRecordingsText.setText(Integer.toString(DEFAULT_TIMES_TO_RECORD));
 
         setUpSoundPlayers();
 
@@ -419,8 +392,6 @@ public class MainFragment extends Fragment
                         .getBoolean(QuickstartPreferences.SENT_TOKEN_TO_SERVER, false);
                 if (sentToken) {
                     mInformationTextView.setText(getString(R.string.gcm_send_message));
-                    mButtonVideo.setEnabled(true);
-                    mButtonAutoVideo.setEnabled(true);
                 } else {
                     mInformationTextView.setText(getString(R.string.token_error_message));
                 }
@@ -445,8 +416,6 @@ public class MainFragment extends Fragment
             @Override
             public void onReceive(Context context, Intent intent) {
                 // No longer allow recording until connection is reestablished.
-                mButtonVideo.setEnabled(false);
-                mButtonAutoVideo.setEnabled(false);
                 mInformationTextView.setText("Record failed. Trying to reconnect to server.");
 
                 // Try reestablishing connection.
@@ -501,80 +470,26 @@ public class MainFragment extends Fragment
 
     @Override
     public void onClick(View view) {
-        switch (view.getId()) {
-            case R.id.video: {
-                // Disable this button so that the user can't spam it.
-                // Also disable the other record button.
-                this.mButtonVideo.setEnabled(false);
-                this.mButtonAutoVideo.setEnabled(false);
+        if (view.getId() == R.id.focus) {
+            //mPreviewBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CaptureRequest.CONTROL_AF_TRIGGER_START);
 
-//                toggleVideoRecording(!mIsRecordingVideo);
-                String message;
-                if (mIsRecordingVideo) {
-                    message = MainFragment.STOP_RECORDING_MESSAGE;
-                } else {
-                    message = MainFragment.START_RECORDING_MESSAGE;
-                }
-
-                new SendMessageTask(this.getContext()).execute(
-                        message,
-                        Integer.toString(fileMaker.getNextId()),
-                        Float.toString(mLastFocusLength));
-//                new SendMessageTask(this.getContext()).execute(
-//                        message, Integer.toString(-1));
-
-                break;
+            if (mPreviewBuilder.get(CaptureRequest.CONTROL_AF_MODE) ==
+                    CameraMetadata.CONTROL_AF_MODE_AUTO) {
+                Log.d("dei", "Turning off autofocus");
+                this.mSeekBar.setEnabled(true);
+                this.mButtonRecofus.setText(R.string.switch_autofocus);
+                mPreviewBuilder.set(CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_OFF);
             }
-            case R.id.video_repeat: {
-                this.mButtonVideo.setEnabled(false);
-                this.mButtonAutoVideo.setEnabled(false);
-                this.mLengthToRecordText.setEnabled(false);
-                this.mIntervalToRecordText.setEnabled(false);
-                this.mNumberOfRecordingsText.setEnabled(false);
-
-                final double lengthToRecord = Double.parseDouble(mLengthToRecordText.getText().toString());
-                final double intervalToRecord = Double.parseDouble(mIntervalToRecordText.getText().toString());
-                final int numberOfRecordings = Integer.parseInt(mNumberOfRecordingsText.getText().toString());
-
-                if (mInRecordingcycle) {
-                    // Cancel the current recording cycle.
-
-                    // Clear all tasks posted to the handlers.
-                    mRepeatRecordingHandler.removeCallbacksAndMessages(null);
-
-                    // If currently recording, then halt it.
-                    if (mIsRecordingVideo) {
-                        new SendMessageTask(MainFragment.this.getContext()).execute(
-                                MainFragment.STOP_RECORDING_MESSAGE, Integer.toString(fileMaker.getNextId()));
-                    }
-
-                    cancelRecordingCycle();
-                } else {
-                    mInRecordingcycle = true;
-                    this.mButtonAutoVideo.setText(R.string.stop_automated);
-
-                    doRecordLoop(lengthToRecord, intervalToRecord, numberOfRecordings);
-                }
+            else if (mPreviewBuilder.get(CaptureRequest.CONTROL_AF_MODE) ==
+                    CameraMetadata.CONTROL_AF_MODE_OFF) {
+                Log.d("dei", "Turning on autofocus");
+                this.mButtonRecofus.setText(R.string.switch_manfocus);
+                this.mSeekBar.setEnabled(false);
+                this.mLastFocusLength = -1;
+                mPreviewBuilder.set(CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_AUTO);
             }
-            case R.id.focus: {
-                //mPreviewBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CaptureRequest.CONTROL_AF_TRIGGER_START);
 
-                if (mPreviewBuilder.get(CaptureRequest.CONTROL_AF_MODE) ==
-                        CameraMetadata.CONTROL_AF_MODE_AUTO) {
-                    this.mSeekBar.setEnabled(true);
-                    this.mButtonRecofus.setText(R.string.switch_autofocus);
-                    mPreviewBuilder.set(CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_OFF);
-                }
-                else if (mPreviewBuilder.get(CaptureRequest.CONTROL_AF_MODE) ==
-                        CameraMetadata.CONTROL_AF_MODE_OFF) {
-                    this.mButtonRecofus.setText(R.string.switch_manfocus);
-                    this.mSeekBar.setEnabled(false);
-                    this.mLastFocusLength = -1;
-                    mPreviewBuilder.set(CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_AUTO);
-                }
-
-                resetPreviewSession();
-            }
+            resetPreviewSession();
         }
     }
 
@@ -620,13 +535,6 @@ public class MainFragment extends Fragment
 
     public void cancelRecordingCycle() {
         mInRecordingcycle = false;
-
-        this.mButtonVideo.setEnabled(true);
-        this.mButtonAutoVideo.setText(R.string.record_automated);
-        this.mButtonAutoVideo.setEnabled(true);
-        this.mLengthToRecordText.setEnabled(true);
-        this.mIntervalToRecordText.setEnabled(true);
-        this.mNumberOfRecordingsText.setEnabled(true);
     }
 
     public void updateFocus(float focus) {
@@ -672,9 +580,6 @@ public class MainFragment extends Fragment
                 // Don't allow leader status to be changed while recording.
                 this.mCheckboxLeader.setEnabled(false);
 
-                this.mButtonVideo.setEnabled(false);
-                this.mButtonAutoVideo.setEnabled(false);
-
                 AsyncTask<Void, Void, Boolean> resetAndStartAsyncTask = new AsyncTask<Void, Void, Boolean>() {
                     @Override
                     protected Boolean doInBackground(Void... voids) {
@@ -692,9 +597,6 @@ public class MainFragment extends Fragment
                          }
 
                         mInformationTextView.setText("RECORDING...");
-                        mButtonVideo.setText(R.string.stop);
-                        mButtonVideo.setEnabled(true);
-                        mButtonAutoVideo.setEnabled(true);
                     }
                 };
 
@@ -1006,7 +908,7 @@ public class MainFragment extends Fragment
             matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
             float scale = Math.max(
                     (float) viewHeight / mPreviewSize.getHeight(),
-                    (float) viewWidth / mPreviewSize.getWidth()) / 2;
+                    (float) viewWidth / mPreviewSize.getWidth()) ;
             matrix.postScale(scale, scale, centerX, centerY);
             matrix.postRotate(90 * (rotation - 2), centerX, centerY);
         }
@@ -1126,7 +1028,6 @@ public class MainFragment extends Fragment
 
         // UI
         mIsRecordingVideo = false;
-        mButtonVideo.setText(R.string.record);
         // Stop recording
 
         try {
@@ -1156,9 +1057,6 @@ public class MainFragment extends Fragment
         if (null != activity) {
             mInformationTextView.setText("Video saved: " + mOutputFile.getAbsolutePath());
         }
-
-        this.mButtonVideo.setEnabled(true);
-        this.mButtonAutoVideo.setEnabled(true);
     }
 
     public static class ErrorDialog extends DialogFragment {
