@@ -438,12 +438,17 @@ public class MainFragment extends Fragment
         if (mIsRecordingVideo) {
             if (!toStartRecording) {
                 mInformationTextView.setText("Stopped recording.");
+                this.mButtonVideo.setText("Record Once");
             }
         } else {
             if (toStartRecording) {
                 mInformationTextView.setText("RECORDING...");
+                this.mButtonVideo.setText("STOP");
             }
         }
+        
+        this.mButtonVideo.setEnabled(true);
+        this.mButtonAutoVideo.setEnabled(true);
     }
 
 
