@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Canary Camera Controller</string>
+    <string name="app_name">MultiCamControl</string>
 
   <string name="gcm_send_message">Token retrieved and sent to server! You can now record.</string>
     <string name="registering_message">Generating InstanceID token...</string>

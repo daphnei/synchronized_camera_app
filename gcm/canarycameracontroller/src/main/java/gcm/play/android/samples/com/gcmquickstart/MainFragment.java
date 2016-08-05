@@ -28,23 +28,11 @@ import android.app.Fragment;
 import android.content.BroadcastReceiver;
 import android.content.DialogInterface;
 import android.content.IntentFilter;
-import android.content.pm.PackageManager;
-import android.graphics.Matrix;
-import android.graphics.RectF;
-import android.graphics.SurfaceTexture;
-import android.hardware.camera2.CameraAccessException;
+
 import android.hardware.camera2.CameraCaptureSession;
-import android.hardware.camera2.CameraCharacteristics;
-import android.hardware.camera2.CameraConstrainedHighSpeedCaptureSession;
 import android.hardware.camera2.CameraDevice;
-import android.hardware.camera2.CameraManager;
-import android.hardware.camera2.CameraMetadata;
-import android.hardware.camera2.CaptureRequest;
-import android.media.CamcorderProfile;
-import android.media.MediaPlayer;
-import android.media.MediaRecorder;
-import android.os.AsyncTask;
-import android.os.Build;
+
+
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -75,6 +63,8 @@ import android.preference.PreferenceManager;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
+
+import org.w3c.dom.Text;
 
 import java.io.File;
 import java.io.IOException;
@@ -130,6 +120,8 @@ public class MainFragment extends Fragment
 
     private CheckBox mCheckboxLeader;
 
+    private TextView focusValueText;
+
     private SeekBar mSeekBar;
 
     /** Callback for video capture, used to listen for changes in focus state.
@@ -158,14 +150,8 @@ public class MainFragment extends Fragment
 
     private Handler mRepeatRecordingHandler;
 
-    private float mLastFocusValue;
+    private int mLastSentFocusValue;
 
-
-    /**
-     * A reference to the current {@link CameraCaptureSession} for
-     * preview.
-     */
-    private CameraConstrainedHighSpeedCaptureSession mPreviewSession;
 
     private static final int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
 
@@ -174,6 +160,7 @@ public class MainFragment extends Fragment
 
     private ProgressBar mRegistrationProgressBar;
     private TextView mInformationTextView;
+    private TextView mNumRecordingsTextView;
     private BroadcastReceiver mRegistrationBroadcastReceiver;
     private BroadcastReceiver mReconnectBroadcastReceiver;
     private BroadcastReceiver mTogglePlaybackReceiver;
@@ -214,11 +201,13 @@ public class MainFragment extends Fragment
         mButtonAutoVideo.setOnClickListener(this);
         mButtonVideo.setOnClickListener(this);
 
+        focusValueText = (TextView) view.findViewById(R.id.focusValue);
         mSeekBar = (SeekBar) view.findViewById(R.id.seekBar);
         mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-                mLastFocusValue = new Float(i);
+                focusValueText.setText(String.format("%d > %d",
+                        i, mLastSentFocusValue));
             }
 
             @Override
@@ -228,10 +217,14 @@ public class MainFragment extends Fragment
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
+                mLastSentFocusValue = seekBar.getProgress();
+                focusValueText.setText(String.format("%d -> %d",
+                        seekBar.getProgress(), mLastSentFocusValue));
+
                 new SendMessageTask(getContext()).execute(
                         MainFragment.UPDATE_FOCUS_MESSAGE,
-                        "",
-                        Float.toString(mLastFocusValue));
+                        "-1",
+                        Float.toString(seekBar.getProgress()));
             }
         });
 
@@ -296,6 +289,7 @@ public class MainFragment extends Fragment
         };
 
         mInformationTextView = (TextView) view.findViewById(R.id.informationTextView);
+        mNumRecordingsTextView = (TextView) view.findViewById(R.id.numRecordingsTextView);
 
         registerReceiver();
 
@@ -385,6 +379,8 @@ public class MainFragment extends Fragment
 
     public void doRecordLoop(
             final double lengthToRecord, final double intervalToRecord, final int numberOfRecordings) {
+        mNumRecordingsTextView.setText(numberOfRecordings + " recordings remaining.");
+
         // Start the recording.
         new SendMessageTask(MainFragment.this.getContext()).execute(
                 MainFragment.START_RECORDING_MESSAGE,
@@ -397,7 +393,6 @@ public class MainFragment extends Fragment
             public void run() {
                 //mRecordingLock.acquireUninterruptibly();
 
-                Log.d("dei", "In callback to stop recording");
                 new SendMessageTask(MainFragment.this.getContext()).execute(
                         MainFragment.STOP_RECORDING_MESSAGE,
                         Integer.toString(fileMaker.getNextId()),
@@ -432,17 +427,27 @@ public class MainFragment extends Fragment
         this.mLengthToRecordText.setEnabled(true);
         this.mIntervalToRecordText.setEnabled(true);
         this.mNumberOfRecordingsText.setEnabled(true);
+        this.mNumRecordingsTextView.setText("Recording loop completed.");
     }
 
     public void toggleVideoRecording(boolean toStartRecording, int id) {
         if (mIsRecordingVideo) {
             if (!toStartRecording) {
+                mIsRecordingVideo = false;
                 mInformationTextView.setText("Stopped recording.");
             }
+            this.mButtonVideo.setText(R.string.record);
+            this.mButtonVideo.setEnabled(true);
+            this.mButtonAutoVideo.setEnabled(true);
+
         } else {
             if (toStartRecording) {
+                mIsRecordingVideo = true;
                 mInformationTextView.setText("RECORDING...");
             }
+            this.mButtonVideo.setText(R.string.stop);
+            this.mButtonVideo.setEnabled(true);
+            this.mButtonAutoVideo.setEnabled(false);
         }
     }
 

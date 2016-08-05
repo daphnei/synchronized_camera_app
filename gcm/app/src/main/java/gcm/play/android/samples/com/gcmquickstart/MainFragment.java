@@ -40,6 +40,8 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.CaptureResult;
+import android.hardware.camera2.TotalCaptureResult;
 import android.media.CamcorderProfile;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
@@ -347,13 +349,8 @@ public class MainFragment extends Fragment
         mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-                float minimumLens = mCharacteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE);
-                mLastFocusLength = (((float) i) * minimumLens / 100);
-
-                int showNum = (int) mLastFocusLength;
-                Log.d("dei", "focus：" + showNum);
-
-                updateFocus(mLastFocusLength);
+                updateFocus(i);
+                resetPreviewSession();
             }
 
             @Override
@@ -363,10 +360,10 @@ public class MainFragment extends Fragment
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                new SendMessageTask(getContext()).execute(
-                    MainFragment.UPDATE_FOCUS_MESSAGE,
-                    "-1",
-                    Float.toString(mLastFocusLength));
+//                new SendMessageTask(getContext()).execute(
+//                    MainFragment.UPDATE_FOCUS_MESSAGE,
+//                    "-1",
+//                    Float.toString(mLastFocusLength));
             }
         });
 
@@ -406,6 +403,7 @@ public class MainFragment extends Fragment
                     toggleVideoRecording(false, intent.getExtras().getInt("id"));
                 } else {
                     updateFocus(intent.getExtras().getFloat("focus"));
+                    resetPreviewSession();
                 }
             }
         };
@@ -487,13 +485,29 @@ public class MainFragment extends Fragment
                 mPreviewBuilder.set(CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_AUTO);
             }
 
+
             //updatePreview();
             resetPreviewSession();
         }
     }
 
     public void setupCaptureCallback() {
-        mCaptureCallback = null;
+        mCaptureCallback = new CameraCaptureSession.CaptureCallback() {
+             @Override
+             public void onCaptureProgressed(@NonNull CameraCaptureSession session,
+                                                           @NonNull CaptureRequest request,
+                                                           @NonNull CaptureResult partialResult) {
+                //Log.d("dei", "HERE");
+            }
+
+
+            @Override
+            public void onCaptureCompleted(@NonNull CameraCaptureSession session,
+                                           @NonNull CaptureRequest request,
+                                           @NonNull TotalCaptureResult result) {
+                //Log.d("dei", "HERE 2");
+            }
+         };
     }
 
     public void doRecordLoop(
@@ -536,13 +550,17 @@ public class MainFragment extends Fragment
         mInRecordingcycle = false;
     }
 
-    public void updateFocus(float focus) {
-        if (focus >= 0) {
-            mLastFocusLength = focus;
+    public void updateFocus(float focusSliderValue) {
+        if (focusSliderValue >= 0) {
+            mLastFocusLength = focusSliderValue;
 
-            mPreviewBuilder.set(CaptureRequest.LENS_FOCUS_DISTANCE, mLastFocusLength);
-            focusValueText.setText(String.format("%.4f", mLastFocusLength));
-            resetPreviewSession();
+            float minimumLens = mCharacteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE);
+            float focus = (((float) focusSliderValue) * minimumLens / 100);
+
+            Log.d("dei", "focus：" + focusSliderValue);
+
+            mPreviewBuilder.set(CaptureRequest.LENS_FOCUS_DISTANCE, focus);
+            focusValueText.setText(String.format("%.2f", focus));
         }
     }
     public void toggleVideoRecording(boolean toStartRecording, int id) {
@@ -605,17 +623,10 @@ public class MainFragment extends Fragment
     }
 
     public void toggleFlash(boolean turnOn) {
-        try {
-            mPreviewBuilder.set(CaptureRequest.FLASH_MODE,
-                    turnOn ? CaptureRequest.FLASH_MODE_TORCH : CaptureRequest.FLASH_MODE_OFF);
+        mPreviewBuilder.set(CaptureRequest.FLASH_MODE,
+                turnOn ? CaptureRequest.FLASH_MODE_TORCH : CaptureRequest.FLASH_MODE_OFF);
 
-            mPreviewSession.setRepeatingBurst(
-                    mPreviewSession.createHighSpeedRequestList(mPreviewBuilder.build()),
-                    mCaptureCallback, mBackgroundHandler);
-
-        } catch (CameraAccessException e) {
-            e.printStackTrace();
-        }
+        resetPreviewSession();
     }
 
     private void registerReceiver() {
@@ -827,6 +838,8 @@ public class MainFragment extends Fragment
             surfaces.add(recorderSurface);
             mPreviewBuilder.addTarget(recorderSurface);
 
+            updateFocus(mLastFocusLength);
+
             mCameraDevice.createConstrainedHighSpeedCaptureSession(surfaces, new CameraCaptureSession.StateCallback() {
 
                 @Override
@@ -872,6 +885,9 @@ public class MainFragment extends Fragment
             mPreviewSession.setRepeatingBurst(
                     mPreviewSession.createHighSpeedRequestList(mPreviewBuilder.build()),
                     mCaptureCallback, mBackgroundHandler);
+//            mPreviewSession.setRepeatingRequest(
+//                    mPreviewBuilder.build(),
+//                    mCaptureCallback, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -881,6 +897,7 @@ public class MainFragment extends Fragment
         builder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
         builder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, new Range<>(240, 240));
         builder.set(CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_OFF);
+        //builder.set(CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_AUTO);
     }
 
     /**
@@ -1055,6 +1072,7 @@ public class MainFragment extends Fragment
         Activity activity = getActivity();
         if (null != activity) {
             mInformationTextView.setText("Video saved: " + mOutputFile.getAbsolutePath());
+            mInformationTextView.setText("Video saved.");
         }
     }
 
