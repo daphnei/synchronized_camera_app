@@ -435,6 +435,8 @@ public class MainFragment extends Fragment
             if (!toStartRecording) {
                 mIsRecordingVideo = false;
                 mInformationTextView.setText("Stopped recording.");
+                this.mButtonVideo.setText("Record Once");
+                mIsRecordingVideo = false;
             }
             this.mButtonVideo.setText(R.string.record);
             this.mButtonVideo.setEnabled(true);
@@ -444,11 +446,16 @@ public class MainFragment extends Fragment
             if (toStartRecording) {
                 mIsRecordingVideo = true;
                 mInformationTextView.setText("RECORDING...");
+                this.mButtonVideo.setText("STOP");
+                mIsRecordingVideo = true;
             }
             this.mButtonVideo.setText(R.string.stop);
             this.mButtonVideo.setEnabled(true);
             this.mButtonAutoVideo.setEnabled(false);
         }
+        
+        this.mButtonVideo.setEnabled(true);
+        this.mButtonAutoVideo.setEnabled(true);
     }
 
 
